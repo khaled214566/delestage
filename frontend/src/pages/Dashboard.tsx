@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { checkHealth, type HealthResponse } from '../api/client';
-import { useAuth } from '../contexts/AuthContext';
-import DeficitPlanner from '../features/dispatcher/DeficitPlanner';
 import '../App.css';
 
 function useHealth() {
