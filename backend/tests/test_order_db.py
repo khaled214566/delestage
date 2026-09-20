@@ -8,9 +8,9 @@ from datetime import date, datetime, UTC
 from sqlalchemy import select
 
 from app.models.deficit import DeficitPlan, DeficitSlot
-from app.models.enums import DeficitPlanStatus, OrderStatus, OrderType, UserRole
+from app.models.enums import DeficitPlanStatus, OrderStatus, OrderType, UserRole, AllocationLevel
 from app.models.users import User
-from app.models.order import ShedOrder, OrderAllocationNode
+from app.models.order import ShedOrder, AllocationNode
 from app.services import order as order_service
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.db]
@@ -72,7 +72,7 @@ async def test_run_allocation(adb):
     
     order = await order_service.run_allocation(adb, order.id, actor=user)
     assert order.status == OrderStatus.ALLOCATED
-    nodes = (await adb.execute(select(OrderAllocationNode).where(OrderAllocationNode.order_id == order.id))).scalars().all()
+    nodes = (await adb.execute(select(AllocationNode).where(AllocationNode.order_id == order.id))).scalars().all()
     assert len(nodes) > 0
 
 async def test_allocation_creates_tree(adb):
@@ -82,10 +82,10 @@ async def test_allocation_creates_tree(adb):
     
     order = await order_service.run_allocation(adb, order.id, actor=user)
     
-    nodes = (await adb.execute(select(OrderAllocationNode).where(OrderAllocationNode.order_id == order.id))).scalars().all()
-    national_nodes = [n for n in nodes if n.node_type == "NATIONAL"]
-    crc_nodes = [n for n in nodes if n.node_type == "CRC"]
-    bcc_nodes = [n for n in nodes if n.node_type == "BCC"]
+    nodes = (await adb.execute(select(AllocationNode).where(AllocationNode.order_id == order.id))).scalars().all()
+    national_nodes = [n for n in nodes if n.level == AllocationLevel.NATIONAL]
+    crc_nodes = [n for n in nodes if n.level == AllocationLevel.CRC]
+    bcc_nodes = [n for n in nodes if n.level == AllocationLevel.BCC]
     
     assert len(national_nodes) == 1
     assert len(crc_nodes) > 0
@@ -102,9 +102,9 @@ async def test_allocation_sum_conservation(adb):
     
     order = await order_service.run_allocation(adb, order.id, actor=user)
     
-    nodes = (await adb.execute(select(OrderAllocationNode).where(OrderAllocationNode.order_id == order.id))).scalars().all()
-    national_nodes = [n for n in nodes if n.node_type == "NATIONAL"]
-    crc_nodes = [n for n in nodes if n.node_type == "CRC"]
+    nodes = (await adb.execute(select(AllocationNode).where(AllocationNode.order_id == order.id))).scalars().all()
+    national_nodes = [n for n in nodes if n.level == AllocationLevel.NATIONAL]
+    crc_nodes = [n for n in nodes if n.level == AllocationLevel.CRC]
     
     assert sum(c.target_mw for c in crc_nodes) == national_nodes[0].target_mw
 
