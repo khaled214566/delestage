@@ -21,6 +21,24 @@ export default function Layout() {
           <NavLink to="/orders" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
             Ordres de délestage
           </NavLink>
+          <NavLink to="/monitoring" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            📡 Monitoring en direct
+          </NavLink>
+          <NavLink to="/bcc" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            ⚡ Conduite BCC
+          </NavLink>
+          <NavLink to="/admin" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            🛡️ Administration
+          </NavLink>
+          <NavLink to="/simulator" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            🎬 Simulateur Démo
+          </NavLink>
+          <NavLink to="/evaluation" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            📊 Évaluation &amp; Benchmarks
+          </NavLink>
+          <NavLink to="/citizen" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} target="_blank">
+            🌐 Portail Citoyen ↗
+          </NavLink>
         </nav>
         <div className="sidebar-footer">
           {user && (

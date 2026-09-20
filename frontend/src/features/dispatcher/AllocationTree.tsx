@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addFeederOverride, removeFeederOverride, AllocationNode, FeederAssignment } from '../../api/client';
+import { addFeederOverride, removeFeederOverride, type AllocationNode } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface AllocationTreeProps {

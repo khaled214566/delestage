@@ -40,3 +40,13 @@ class UserRole(str, enum.Enum):
 class DeficitPlanStatus(str, enum.Enum):
     DRAFT = "DRAFT"
     VALIDATED = "VALIDATED"
+
+class AlarmLevel(str, enum.Enum):
+    GREEN = "GREEN"
+    AMBER = "AMBER"
+    RED = "RED"
+
+class EventStatus(str, enum.Enum):
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+    OVER_LIMIT = "OVER_LIMIT"
