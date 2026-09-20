@@ -9,6 +9,7 @@ from app.core.database import AsyncSessionLocal
 from app.schemas.health import HealthResponse
 from app.modules.auth.router import router as auth_router
 from app.modules.deficit.router import router as deficit_router
+from app.modules.orders.router import router as orders_router
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Delestage API - National Load Shedding Platform",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
     # Tells Swagger UI to send the Bearer token automatically
     swagger_ui_init_oauth={"usePkceWithAuthorizationCodeGrant": True},
@@ -36,7 +37,7 @@ app.add_middleware(
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
-    health = HealthResponse(status="ok", version="0.2.0", environment=settings.app_env)
+    health = HealthResponse(status="ok", version="0.3.0", environment=settings.app_env)
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
@@ -58,3 +59,4 @@ async def health_check():
 
 app.include_router(auth_router)
 app.include_router(deficit_router)
+app.include_router(orders_router)

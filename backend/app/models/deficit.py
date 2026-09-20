@@ -65,6 +65,9 @@ class DeficitPlan(Base):
         back_populates="plan", cascade="all, delete-orphan", passive_deletes=True,
         order_by="DeficitSlot.slot_start",
     )
+    order: Mapped["ShedOrder | None"] = relationship(
+        "ShedOrder", back_populates="plan", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     __table_args__ = (
         UniqueConstraint("date", "mode", name="uq_deficit_plan_date_mode"),

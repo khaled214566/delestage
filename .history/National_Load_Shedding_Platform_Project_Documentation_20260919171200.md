@@ -953,21 +953,19 @@ This drives the data model, the real-time design, the trust model (what happens 
 
 **Your answer:** pending.
 
-**Already resolved (kept here for traceability):**
-- Max outage duration: 45 min, configurable (`Parameters.max_duration_min`, M1).
-- Regional key: configurable JSON, defaults `{CRC_N: 0.67, CRC_S: 0.33}` (M1).
-- Fairness definition: `cumulativeMinutes / priorityWeight`, lowest shed first (section 13 class diagram).
-- Citizen channel priority: web push primary, SMS/email optional (section 15).
-
 ### Decisions still to resolve after Question 1 (candidate topics)
 
 | Topic | Why it matters |
 |---|---|
 | Trust model for manual entry | What if the operator types a wrong MW or forgets to confirm a restoration? Timeouts, reminders, cross-checks with the CRC |
+| Maximum outage: 30 or 45 minutes, and per feeder or cumulative per day | Changes the rules engine and constraints |
+| Regional key: fixed 2/3 and 1/3 or dynamic | Affects fairness across CRC North and South |
 | Optimizer scope: CP-SAT multi-slot from day one or greedy first | Time risk vs "intelligence" score |
 | Who may override rules (rest time, P0)? | Safety and audit implications |
+| Definition of "fair": equal minutes per feeder, per customer, per zone or per region | Drives the fairness metric and the demo evidence |
 | How P0 sites are defined and maintained | Data ownership and citizen privacy |
 | Availability target and offline behavior of the BCC screen | Resilience to communication loss |
+| Citizen channel priority: web, push, SMS | Reach and cost |
 | Team skills and timeline vs the stack | Whether to start with the lower-risk compromise |
 
 ---

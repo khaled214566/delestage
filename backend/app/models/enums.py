@@ -16,10 +16,16 @@ class FeederStatus(str, enum.Enum):
 
 class OrderStatus(str, enum.Enum):
     DRAFT = "DRAFT"
+    ALLOCATED = "ALLOCATED"
     VALIDATED = "VALIDATED"
     ACTIVE = "ACTIVE"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+
+class AllocationLevel(str, enum.Enum):
+    NATIONAL = "NATIONAL"
+    CRC = "CRC"
+    BCC = "BCC"
 
 class OrderType(str, enum.Enum):
     J_1 = "J-1"          # Day-ahead plan

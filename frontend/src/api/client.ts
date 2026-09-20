@@ -1,4 +1,34 @@
-﻿export default apiClient;
+import axios from 'axios';
+
+const apiClient = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to attach JWT token
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor for auth errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
 
 // Health check API — mirrors backend/app/schemas/health.py::HealthResponse.
 // feeder_count and sheddable_mw are the M1 signal: they come straight from
@@ -15,5 +45,196 @@ export interface HealthResponse {
 
 export const checkHealth = async (): Promise<HealthResponse> => {
   const { data } = await apiClient.get<HealthResponse>('/health');
+  return data;
+};
+
+// --- Deficit computation (M3 / UC1) — mirrors backend/app/schemas/deficit.py ---
+
+export type DeficitPlanStatus = 'DRAFT' | 'VALIDATED';
+export type OrderMode = 'J-1' | 'REAL_TIME';
+
+export interface DeficitSlot {
+  id: number;
+  plan_id: number;
+  slot_start: string;
+  slot_end: string;
+  demand_mw: number;
+  generation_mw: number;
+  imports_mw: number;
+  margin_mw: number;
+  deficit_mw: number;
+  updated_at: string;
+}
+
+export interface DeficitPlan {
+  id: number;
+  date: string;
+  mode: OrderMode;
+  status: DeficitPlanStatus;
+  created_by: number;
+  created_at: string;
+  validated_by: number | null;
+  validated_at: string | null;
+  slots: DeficitSlot[];
+}
+
+export interface DeficitRevision {
+  id: number;
+  slot_id: number;
+  changed_by: number;
+  changed_at: string;
+  old_values: Record<string, number>;
+  new_values: Record<string, number>;
+}
+
+export interface CsvImportResult {
+  created: number;
+  updated: number;
+  slots: DeficitSlot[];
+}
+
+export const listPlans = async (): Promise<DeficitPlan[]> => {
+  const { data } = await apiClient.get<DeficitPlan[]>('/deficit/plans');
+  return data;
+};
+
+export const createPlan = async (date: string, mode: OrderMode): Promise<DeficitPlan> => {
+  const { data } = await apiClient.post<DeficitPlan>('/deficit/plans', { date, mode });
+  return data;
+};
+
+export const getPlan = async (planId: number): Promise<DeficitPlan> => {
+  const { data } = await apiClient.get<DeficitPlan>(`/deficit/plans/${planId}`);
+  return data;
+};
+
+export const editSlot = async (
+  planId: number,
+  slotId: number,
+  patch: Partial<Pick<DeficitSlot, 'demand_mw' | 'generation_mw' | 'imports_mw' | 'margin_mw'>>,
+): Promise<DeficitSlot> => {
+  const { data } = await apiClient.patch<DeficitSlot>(`/deficit/plans/${planId}/slots/${slotId}`, patch);
+  return data;
+};
+
+export const importCsv = async (planId: number, csvText: string): Promise<CsvImportResult> => {
+  const form = new FormData();
+  form.append('file', new Blob([csvText], { type: 'text/csv' }), 'import.csv');
+  // The instance default is 'application/json' (see apiClient above); for a
+  // FormData body that must be unset, not overridden, so the browser can
+  // generate 'multipart/form-data; boundary=...' itself — a hardcoded
+  // Content-Type here would have the wrong (missing) boundary and the
+  // server would fail to parse the body.
+  const { data } = await apiClient.post<CsvImportResult>(`/deficit/plans/${planId}/import-csv`, form, {
+    headers: { 'Content-Type': undefined },
+  });
+  return data;
+};
+
+export const validatePlan = async (planId: number): Promise<DeficitPlan> => {
+  const { data } = await apiClient.post<DeficitPlan>(`/deficit/plans/${planId}/validate`);
+  return data;
+};
+
+export const getSlotRevisions = async (planId: number, slotId: number): Promise<DeficitRevision[]> => {
+  const { data } = await apiClient.get<DeficitRevision[]>(`/deficit/plans/${planId}/slots/${slotId}/revisions`);
+  return data;
+};
+
+// --- Shed Orders & Allocation (M4+M5) ---
+
+export type OrderStatus = 'DRAFT' | 'ALLOCATED' | 'VALIDATED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type AllocationLevel = 'NATIONAL' | 'CRC' | 'BCC';
+
+export interface FeederAssignment {
+  id: number;
+  feeder_id: string;
+  feeder_name: string;
+  assigned_mw: number;
+  priority: string;
+  fairness_score: number;
+  is_manual: boolean;
+  assigned_at: string;
+  assigned_by: number;
+}
+
+export interface AllocationNode {
+  id: number;
+  level: AllocationLevel;
+  entity_id: string;
+  target_mw: number;
+  achieved_mw: number;
+  shortfall_mw: number;
+  is_partial: boolean;
+  children: AllocationNode[];
+  feeder_assignments: FeederAssignment[];
+}
+
+export interface ShedOrder {
+  id: number;
+  plan_id: number;
+  status: OrderStatus;
+  total_deficit_mw: number;
+  created_by: number;
+  created_at: string;
+  allocated_at: string | null;
+  validated_by: number | null;
+  validated_at: string | null;
+  activated_at: string | null;
+  completed_at: string | null;
+  cancelled_by: number | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  allocation_nodes: AllocationNode[];
+}
+
+export interface OrderListItem {
+  id: number;
+  plan_id: number;
+  plan_date: string;
+  plan_mode: string;
+  status: OrderStatus;
+  total_deficit_mw: number;
+  created_at: string;
+  shortfall_count: number;
+}
+
+export const listOrders = async (): Promise<OrderListItem[]> => {
+  const { data } = await apiClient.get<OrderListItem[]>('/orders');
+  return data;
+};
+
+export const createOrder = async (planId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>('/orders', { plan_id: planId });
+  return data;
+};
+
+export const getOrder = async (orderId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.get<ShedOrder>(`/orders/${orderId}`);
+  return data;
+};
+
+export const allocateOrder = async (orderId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/allocate`);
+  return data;
+};
+
+export const validateOrder = async (orderId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/validate`);
+  return data;
+};
+
+export const cancelOrder = async (orderId: number, reason: string): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/cancel`, { reason });
+  return data;
+};
+
+export const addFeederOverride = async (orderId: number, nodeId: number, feederId: string): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/allocate/nodes/${nodeId}/feeders`, { feeder_id: feederId });
+  return data;
+};
+
+export const removeFeederOverride = async (orderId: number, assignmentId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.delete<ShedOrder>(`/orders/${orderId}/allocate/assignments/${assignmentId}`);
   return data;
 };
