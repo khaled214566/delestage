@@ -29,16 +29,7 @@ down_revision: str | None = "0001"
 branch_labels: str | tuple | None = None
 depends_on: str | tuple | None = None
 
-# ---------------------------------------------------------------------------
-# Pre-computed argon2id hashes for password "delestage123"
-# Generated with: passlib.context.CryptContext(schemes=["argon2"]).hash("delestage123")
-# Safe to commit — these are hashes, not the password.
-# ---------------------------------------------------------------------------
-_HASH = (
-    "$argon2id$v=19$m=65536,t=3,p=4"
-    "$c29tZXNhbHRzb21lc2FsdA"
-    "$RoACMFOE4RNpPMFyHCxHXg"
-)
+DEMO_PASSWORD = "delestage123"  # demo accounts only; change before any real deployment
 
 
 def upgrade() -> None:
@@ -63,7 +54,7 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(255), nullable=False),
         sa.Column(
             "role",
-            sa.Enum(
+            postgresql.ENUM(
                 "DISPATCHER", "CRC_OPERATOR", "BCC_OPERATOR", "ADMIN",
                 name="userrole",
                 create_type=False,
@@ -141,15 +132,29 @@ def upgrade() -> None:
 
     # ------------------------------------------------------------------
     # 5. Default demo accounts (password: delestage123)
+    #    The argon2id hash is computed here rather than hard-coded, so it is
+    #    guaranteed to verify with the same passlib settings the API uses.
     # ------------------------------------------------------------------
-    op.execute(f"""
-        INSERT INTO users (username, name, hashed_password, role, scope_type, scope_id, is_active)
-        VALUES
-            ('admin',  'Administrator',  '{_HASH}', 'ADMIN',        'national', NULL,    true),
-            ('ahmed',  'Ahmed B.',        '{_HASH}', 'DISPATCHER',   'national', NULL,    true),
-            ('crc_n',  'Operateur CRC N', '{_HASH}', 'CRC_OPERATOR', 'crc',      'CRC_N', true),
-            ('sana',   'Sana M.',         '{_HASH}', 'BCC_OPERATOR', 'bcc',      'BCC1',  true);
-    """)
+    from passlib.context import CryptContext
+
+    demo_hash = CryptContext(schemes=["argon2"], deprecated="auto").hash(DEMO_PASSWORD)
+    users = sa.table(
+        "users",
+        sa.column("username", sa.String),
+        sa.column("name", sa.String),
+        sa.column("hashed_password", sa.String),
+        sa.column("role", postgresql.ENUM(name="userrole", create_type=False)),
+        sa.column("scope_type", sa.String),
+        sa.column("scope_id", sa.String),
+        sa.column("is_active", sa.Boolean),
+    )
+    demo_accounts = [
+        {"username": "admin", "name": "Administrator",   "role": "ADMIN",        "scope_type": "national", "scope_id": None},
+        {"username": "ahmed", "name": "Ahmed B.",        "role": "DISPATCHER",   "scope_type": "national", "scope_id": None},
+        {"username": "crc_n", "name": "Operateur CRC N", "role": "CRC_OPERATOR", "scope_type": "crc",      "scope_id": "CRC_N"},
+        {"username": "sana",  "name": "Sana M.",         "role": "BCC_OPERATOR", "scope_type": "bcc",      "scope_id": "BCC1"},
+    ]
+    op.bulk_insert(users, [{**acct, "hashed_password": demo_hash, "is_active": True} for acct in demo_accounts])
 
 
 def downgrade() -> None:

@@ -46,7 +46,7 @@ async def health_check():
                 result = await session.execute(text("SELECT COUNT(*) FROM feeder"))
                 health.feeder_count = result.scalar() or 0
 
-                result = await session.execute(text("SELECT COALESCE(SUM(avg_mw), 0) FROM feeder WHERE critical = false"))
+                result = await session.execute(text("SELECT COALESCE(SUM(avg_mw), 0) FROM v_sheddable_feeders"))
                 health.sheddable_mw = float(result.scalar() or 0.0)
             except Exception:
                 pass
