@@ -1,74 +1,46 @@
-﻿.app {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-
-header {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-header h1 {
-  font-size: 1.8rem;
-  color: #1a365d;
-  margin-bottom: 0.25rem;
-}
-
-header p {
+﻿.module-sub {
+  display: block;
+  margin-top: 0.15rem;
+  margin-left: 1.4rem;
   color: #718096;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
 }
 
-.status {
-  padding: 1rem;
-  border-radius: 8px;
+.grid-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
   margin-bottom: 1.5rem;
-  font-weight: 500;
-  text-align: center;
 }
 
-.status.ok {
-  background-color: #c6f6d5;
-  color: #22543d;
-  border: 1px solid #9ae6b4;
-}
-
-.status.error {
-  background-color: #fed7d7;
-  color: #742a2a;
-  border: 1px solid #fc8181;
-}
-
-.status.loading {
-  background-color: #e9d8fd;
-  color: #44337a;
-  border: 1px solid #d6bcfa;
-}
-
-.info {
+.stat-card {
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1rem;
+  text-align: center;
 }
 
-.info h2 {
-  margin-top: 0;
-  color: #2d3748;
-  font-size: 1.2rem;
+.stat-value {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a365d;
 }
 
-.info ul {
-  list-style: none;
-  padding: 0;
+.stat-label {
+  display: block;
+  margin-top: 0.25rem;
+  color: #718096;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-.info li {
-  padding: 0.4rem 0;
-  color: #4a5568;
-  font-size: 0.95rem;
+.stat-card.stat-good .stat-value {
+  color: #22543d;
+}
+
+.stat-card.stat-bad .stat-value {
+  color: #742a2a;
 }
