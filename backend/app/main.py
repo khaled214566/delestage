@@ -5,7 +5,6 @@ import logging
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.health import router as health_router
 from app.core.database import AsyncSessionLocal
 from app.schemas.health import HealthResponse
 from app.modules.auth.router import router as auth_router
@@ -56,5 +55,5 @@ async def health_check():
 
     return health
 
-app.include_router(health_router)
+
 app.include_router(auth_router)
