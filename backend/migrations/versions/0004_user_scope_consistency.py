@@ -3,16 +3,6 @@
 Revision ID: 0004
 Revises: 0003
 Create Date: 2026-09-20
-
-Without this, nothing stops inserting e.g. a BCC_OPERATOR with
-scope_type='national' and scope_id=NULL. Today that fails closed
-(check_bcc_scope locks them out of everything) rather than granting
-excess access, but it's a silent misconfiguration with no constraint
-catching it at write time — this closes that gap at the database level,
-independent of whatever validation M9's admin screen ends up doing.
-
-The four existing demo accounts (admin, ahmed, crc_n, sana) already
-satisfy this, so applying it is non-destructive.
 """
 from alembic import op
 

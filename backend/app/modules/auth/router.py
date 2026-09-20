@@ -2,8 +2,8 @@
 Authentication router.
 
 Endpoints:
-    POST /auth/login  — OAuth2 password form → JWT access token
-    GET  /auth/me     — returns the current user's profile (requires token)
+    POST /api/auth/login  — OAuth2 password form → JWT access token
+    GET  /api/auth/me     — returns the current user's profile (requires token)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,7 +18,7 @@ from app.models.users import User
 from app.schemas.auth import TokenResponse, UserRead
 import app.services.audit as audit
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse, summary="Obtain a JWT access token")

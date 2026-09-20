@@ -38,3 +38,36 @@ def db(engine):
         session.close()
         trans.rollback()
         conn.close()
+
+
+@pytest.fixture(scope="session")
+def _async_db_reachable(engine):
+    """Piggybacks on `engine`'s reachability/schema check (session-scoped,
+    sync, so it's cheap to share) — the async engine itself must NOT be
+    session-scoped: pytest-asyncio gives each test its own event loop by
+    default, and an asyncpg connection pool opened on one loop breaks with
+    'another operation is in progress' style errors if reused from another."""
+    return True
+
+
+@pytest.fixture()
+async def adb(_async_db_reachable):
+    """An AsyncSession inside a transaction that is always rolled back —
+    the async counterpart of `db`, for calling app.services.* functions.
+    Function-scoped end to end (engine included) so it always matches the
+    current test's event loop."""
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+    from app.core.config import settings
+
+    aeng = create_async_engine(settings.database_url)
+    conn = await aeng.connect()
+    trans = await conn.begin()
+    session = AsyncSession(bind=conn, join_transaction_mode="create_savepoint")
+    try:
+        yield session
+    finally:
+        await session.close()
+        await trans.rollback()
+        await conn.close()
+        await aeng.dispose()

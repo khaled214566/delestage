@@ -30,3 +30,7 @@ class UserRole(str, enum.Enum):
     CRC_OPERATOR = "CRC_OPERATOR"
     BCC_OPERATOR = "BCC_OPERATOR"
     ADMIN = "ADMIN"
+
+class DeficitPlanStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    VALIDATED = "VALIDATED"
