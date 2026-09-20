@@ -1,23 +1,62 @@
 ﻿import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { checkHealth } from './api/client';
+import { checkHealth, type HealthResponse } from './api/client';
 import './App.css';
 
 const queryClient = new QueryClient();
 
-function HealthCheck() {
-  const { data, isLoading, error } = useQuery({
+// Both components below share this query key, so react-query fetches the
+// health endpoint once and both read from the same cache — no duplicate calls.
+function useHealth() {
+  return useQuery<HealthResponse>({
     queryKey: ['health'],
     queryFn: checkHealth,
     refetchInterval: 30000,
   });
+}
 
-  if (isLoading) return <div className="status loading">Connecting to API...</div>;
-  if (error) return <div className="status error">❌ API unreachable</div>;
+function fmtMw(mw: number) {
+  return mw.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function GridSnapshot() {
+  const { data, isLoading, error } = useHealth();
+
+  if (isLoading) return <div className="status loading">Connexion à l'API...</div>;
+  if (error || !data) return <div className="status error">❌ API injoignable</div>;
 
   return (
-    <div className="status ok">
-      ✅ API connected — v{data.version} ({data.environment})
-    </div>
+    <>
+      <div className="status ok">
+        ✅ API connectée — v{data.version} ({data.environment})
+      </div>
+
+      <div className="grid-stats">
+        <div className="stat-card">
+          <span className="stat-value">{data.feeder_count.toLocaleString('fr-FR')}</span>
+          <span className="stat-label">Départs générés</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value">{fmtMw(data.sheddable_mw)}</span>
+          <span className="stat-label">MW délestables</span>
+        </div>
+        <div className={`stat-card ${data.db_connected ? 'stat-good' : 'stat-bad'}`}>
+          <span className="stat-value">{data.db_connected ? 'Connectée' : 'Indisponible'}</span>
+          <span className="stat-label">Base de données</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Small inline subtitle under the M1 line item — reuses the cached health
+// query above, so it costs nothing extra and always matches GridSnapshot.
+function M1Subtitle() {
+  const { data } = useHealth();
+  if (!data || data.feeder_count === 0) return null;
+  return (
+    <span className="module-sub">
+      {data.feeder_count.toLocaleString('fr-FR')} départs · {fmtMw(data.sheddable_mw)} MW délestables
+    </span>
   );
 }
 
@@ -30,23 +69,26 @@ function App() {
           <p>National Intelligent Load Shedding Management Platform</p>
         </header>
         <main>
-          <HealthCheck />
+          <GridSnapshot />
           <div className="info">
             <h2>Modules</h2>
             <ul>
               <li>✅ M0 — Project Setup</li>
-              <li>⬜ M1 — Database Schema & Seed Data</li>
-              <li>⬜ M2 — Authentication, Roles & Audit</li>
+              <li>
+                ✅ M1 — Database Schema &amp; Seed Data
+                <M1Subtitle />
+              </li>
+              <li>⬜ M2 — Authentication, Roles &amp; Audit</li>
               <li>⬜ M3 — Deficit Computation</li>
               <li>⬜ M4 — Shed Orders</li>
-              <li>⬜ M5 — Allocation & Feeder Selection</li>
+              <li>⬜ M5 — Allocation &amp; Feeder Selection</li>
               <li>⬜ M6 — Real-time Monitoring</li>
               <li>⬜ M7 — BCC Execution</li>
               <li>⬜ M8 — Rotation Engine</li>
-              <li>⬜ M9 — Administration & Audit View</li>
+              <li>⬜ M9 — Administration &amp; Audit View</li>
               <li>⬜ M10 — Citizen Platform</li>
               <li>⬜ M11 — Demo Simulator</li>
-              <li>⬜ M12 — Evaluation & Tests</li>
+              <li>⬜ M12 — Evaluation &amp; Tests</li>
             </ul>
           </div>
         </main>

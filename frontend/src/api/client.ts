@@ -1,37 +1,19 @@
-﻿import axios from 'axios';
+﻿export default apiClient;
 
-const apiClient = axios.create({
-  baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Health check API — mirrors backend/app/schemas/health.py::HealthResponse.
+// feeder_count and sheddable_mw are the M1 signal: they come straight from
+// the seeded grid tables and the v_sheddable_feeders view, so a nonzero
+// value here is live proof that M1's schema + seed data are working.
+export interface HealthResponse {
+  status: string;
+  version: string;
+  environment: string;
+  db_connected: boolean;
+  feeder_count: number;
+  sheddable_mw: number;
+}
 
-// Request interceptor to attach JWT token
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor for auth errors
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default apiClient;
-
-// Health check API
-export const checkHealth = async () => {
-  const { data } = await apiClient.get('/health');
+export const checkHealth = async (): Promise<HealthResponse> => {
+  const { data } = await apiClient.get<HealthResponse>('/health');
   return data;
 };
