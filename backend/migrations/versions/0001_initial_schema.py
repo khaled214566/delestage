@@ -109,7 +109,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "priority",
-            sa.Enum("P0", "P1", "P2", "P3", "P4", "P5", name="prioritylevel", create_type=False),
+            postgresql.ENUM("P0", "P1", "P2", "P3", "P4", "P5", name="prioritylevel", create_type=False),
             nullable=False,
             server_default="P3",
         ),
@@ -118,7 +118,7 @@ def upgrade() -> None:
         sa.Column("zone_id", sa.String(30), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("CLOSED", "OPEN", "MAINTENANCE", "UNAVAILABLE", name="feederstatus", create_type=False),
+            postgresql.ENUM("CLOSED", "OPEN", "MAINTENANCE", "UNAVAILABLE", name="feederstatus", create_type=False),
             nullable=False,
             server_default="CLOSED",
         ),
