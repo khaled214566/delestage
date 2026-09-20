@@ -4,8 +4,8 @@ Tests the CRC split, BCC largest-remainder, fairness scoring,
 eligibility rules, and greedy feeder selection against the
 documented specifications.
 """
-from datetime import datetime, UTC, timedelta
 import pytest
+from datetime import datetime, timezone, timedelta
 
 from app.engine.allocator import CrcShare, BccWeight, allocate_to_crcs, allocate_to_bccs
 from app.engine.rules import (
@@ -28,7 +28,7 @@ def test_crc_split_300mw():
 def test_crc_split_350mw():
     shares = [CrcShare(crc_id="CRC_N", share_key=0.67), CrcShare(crc_id="CRC_S", share_key=0.33)]
     result = allocate_to_crcs(350, shares)
-    assert round(sum(result.values()), 2) == 350.0
+    assert sum(result.values()) == 350.0
 
 
 def test_crc_split_zero():
@@ -42,10 +42,10 @@ def test_crc_split_zero():
 def test_crc_split_sum_conservation(deficit):
     shares = [CrcShare(crc_id="CRC_N", share_key=0.67), CrcShare(crc_id="CRC_S", share_key=0.33)]
     result = allocate_to_crcs(deficit, shares)
-    assert round(sum(result.values()), 2) == deficit
+    assert sum(result.values()) == deficit
 
 
-# --- BCC allocation (largest remainder) ---
+# --- BCC allocation ---
 
 def test_bcc_largest_remainder_basic():
     weights = [
@@ -67,7 +67,7 @@ def test_bcc_sum_conservation(target):
         BccWeight(bcc_id="BCC4", managed_load_mw=150.0),
     ]
     result = allocate_to_bccs(target, weights)
-    assert sum(result.values()) == round(target)
+    assert sum(result.values()) == target
 
 
 def test_bcc_zero_target():
@@ -95,6 +95,7 @@ def test_bcc_deterministic():
 # --- Priority weights ---
 
 def test_priority_weights_inverted():
+    # Inverted priority weights: P5 (lowest cost, shed first) = 1, P1 (highest cost, protected) = 5
     assert PRIORITY_WEIGHT[PriorityLevel.P5] < PRIORITY_WEIGHT[PriorityLevel.P4]
     assert PRIORITY_WEIGHT[PriorityLevel.P4] < PRIORITY_WEIGHT[PriorityLevel.P3]
     assert PRIORITY_WEIGHT[PriorityLevel.P3] < PRIORITY_WEIGHT[PriorityLevel.P2]
@@ -102,148 +103,105 @@ def test_priority_weights_inverted():
 
 
 def test_fairness_score_fresh_feeders():
-    score_p5 = compute_fairness_score(0, PriorityLevel.P5)
-    score_p1 = compute_fairness_score(0, PriorityLevel.P1)
+    score_p5 = compute_fairness_score(0.0, PriorityLevel.P5)
+    score_p1 = compute_fairness_score(0.0, PriorityLevel.P1)
     assert score_p5 == 0.0
     assert score_p1 == 0.0
 
 
 def test_fairness_score_after_shedding():
-    # P5 weight is 1 -> score = 30 / 1 = 30
-    # P3 weight is 3 -> score = 30 / 3 = 10
-    score_p5 = compute_fairness_score(30, PriorityLevel.P5)
-    score_p3 = compute_fairness_score(30, PriorityLevel.P3)
+    # Lower score = shed first
+    # After 30 min shed:
+    # P5 score = 30 / 1 = 30
+    # P3 score = 30 / 3 = 10 -> P3 would have a lower raw score if pure division,
+    # but P5 has weight=1 so 30/1 = 30 vs 30/3 = 10.
+    score_p5 = compute_fairness_score(30.0, PriorityLevel.P5)
+    score_p3 = compute_fairness_score(30.0, PriorityLevel.P3)
     assert score_p3 < score_p5
 
 
 # --- Eligibility rules ---
 
 def test_p0_never_eligible():
-    now = datetime.now(UTC)
-    assert not is_eligible(
-        priority=PriorityLevel.P0,
-        critical=False,
-        status=FeederStatus.CLOSED,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    eligible = is_eligible(
+        priority=PriorityLevel.P0, critical=False, status=FeederStatus.CLOSED,
+        last_shed_end=None, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert not eligible
 
 
 def test_critical_never_eligible():
-    now = datetime.now(UTC)
-    assert not is_eligible(
-        priority=PriorityLevel.P3,
-        critical=True,
-        status=FeederStatus.CLOSED,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=True, status=FeederStatus.CLOSED,
+        last_shed_end=None, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert not eligible
 
 
 def test_open_feeder_not_eligible():
-    now = datetime.now(UTC)
-    assert not is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.OPEN,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=False, status=FeederStatus.OPEN,
+        last_shed_end=None, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert not eligible
 
 
 def test_maintenance_not_eligible():
-    now = datetime.now(UTC)
-    assert not is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.MAINTENANCE,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=False, status=FeederStatus.MAINTENANCE,
+        last_shed_end=None, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert not eligible
 
 
 def test_closed_feeder_eligible():
-    now = datetime.now(UTC)
-    assert is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.CLOSED,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=False, status=FeederStatus.CLOSED,
+        last_shed_end=None, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert eligible
 
 
 def test_rest_time_enforced():
-    now = datetime.now(UTC)
-    last_end = now - timedelta(minutes=60)
-    assert not is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.CLOSED,
-        last_shed_end=last_end,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    last_end = now - timedelta(minutes=60)  # Only 60 min rest, requires 180 min
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=False, status=FeederStatus.CLOSED,
+        last_shed_end=last_end, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert not eligible
 
 
 def test_rest_time_met():
-    now = datetime.now(UTC)
-    last_end = now - timedelta(minutes=200)
-    assert is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.CLOSED,
-        last_shed_end=last_end,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    last_end = now - timedelta(minutes=200)  # 200 min rest > 180 min
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=False, status=FeederStatus.CLOSED,
+        last_shed_end=last_end, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids=set(), feeder_id="F-101"
     )
+    assert eligible
 
 
 def test_already_assigned_not_eligible():
-    now = datetime.now(UTC)
-    assert not is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.CLOSED,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids={"F1"},
-        feeder_id="F1",
+    now = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+    eligible = is_eligible(
+        priority=PriorityLevel.P3, critical=False, status=FeederStatus.CLOSED,
+        last_shed_end=None, slot_start=now, rest_time_minutes=180,
+        assigned_feeder_ids={"F-101"}, feeder_id="F-101"
     )
-
-
-def test_no_history_eligible():
-    now = datetime.now(UTC)
-    assert is_eligible(
-        priority=PriorityLevel.P3,
-        critical=False,
-        status=FeederStatus.CLOSED,
-        last_shed_end=None,
-        slot_start=now,
-        rest_time_minutes=180,
-        assigned_feeder_ids=set(),
-        feeder_id="F1",
-    )
+    assert not eligible
 
 
 # --- Greedy selector ---
@@ -251,34 +209,34 @@ def test_no_history_eligible():
 def _fc(feeder_id: str, avg_mw: float, score: float = 0.0) -> FeederCandidate:
     return FeederCandidate(
         feeder_id=feeder_id,
-        name=f"Feeder {feeder_id}",
+        name=f"Feeder-{feeder_id}",
         bcc_id="BCC1",
         avg_mw=avg_mw,
         priority=PriorityLevel.P3,
         cumulative_minutes=score,
         priority_weight=3,
-        fairness_score=score,
-        zone_id="Z1",
+        fairness_score=score / 3.0,
+        zone_id="Z-TEST-1",
     )
 
 
 def test_greedy_meets_target():
-    feeders = [_fc("F1", 10.0), _fc("F2", 15.0), _fc("F3", 20.0), _fc("F4", 5.0)]
+    feeders = [_fc("F-1", 10.0), _fc("F-2", 15.0), _fc("F-3", 25.0)]
     result = select_feeders(target_mw=50.0, eligible=feeders, max_overshoot_pct=0.10)
-    assert sum(f.avg_mw for f in result.selected) == 50.0
+    assert result.achieved_mw == 50.0
     assert not result.is_partial
 
 
 def test_greedy_overshoot_tolerance():
-    feeders = [_fc("F1", 54.0)]
+    feeders = [_fc("F-1", 54.0)]
     result = select_feeders(target_mw=50.0, eligible=feeders, max_overshoot_pct=0.10)
     assert len(result.selected) == 1
-    assert result.selected[0].avg_mw == 54.0
+    assert result.achieved_mw == 54.0
     assert not result.is_partial
 
 
 def test_greedy_shortfall():
-    feeders = [_fc("F1", 60.0)]
+    feeders = [_fc("F-1", 60.0)]
     result = select_feeders(target_mw=100.0, eligible=feeders, max_overshoot_pct=0.10)
     assert len(result.selected) == 1
     assert result.is_partial
@@ -286,20 +244,21 @@ def test_greedy_shortfall():
 
 
 def test_greedy_zero_target():
-    feeders = [_fc("F1", 10.0)]
+    feeders = [_fc("F-1", 10.0)]
     result = select_feeders(target_mw=0.0, eligible=feeders, max_overshoot_pct=0.10)
     assert len(result.selected) == 0
 
 
 def test_greedy_fairness_ordering():
-    feeders = [_fc("F1", 30.0, score=100.0), _fc("F2", 30.0, score=10.0), _fc("F3", 30.0, score=50.0)]
+    # Lower fairness score is selected first!
+    feeders = [_fc("F-1", 30.0, score=100.0), _fc("F-2", 30.0, score=10.0), _fc("F-3", 30.0, score=50.0)]
     result = select_feeders(target_mw=30.0, eligible=feeders, max_overshoot_pct=0.10)
     assert len(result.selected) == 1
-    assert result.selected[0].feeder_id == "F2"
+    assert result.selected[0].feeder_id == "F-2"
 
 
 def test_greedy_deterministic():
-    feeders = [_fc("F1", 10.0), _fc("F2", 20.0), _fc("F3", 30.0)]
+    feeders = [_fc("F-1", 10.0), _fc("F-2", 20.0), _fc("F-3", 30.0)]
     res1 = select_feeders(target_mw=40.0, eligible=feeders, max_overshoot_pct=0.10)
     res2 = select_feeders(target_mw=40.0, eligible=feeders, max_overshoot_pct=0.10)
     assert [f.feeder_id for f in res1.selected] == [f.feeder_id for f in res2.selected]

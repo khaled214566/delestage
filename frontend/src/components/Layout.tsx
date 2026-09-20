@@ -21,6 +21,9 @@ export default function Layout() {
           <NavLink to="/orders" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
             Ordres de délestage
           </NavLink>
+          <NavLink to="/monitoring" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            📡 Monitoring en direct
+          </NavLink>
         </nav>
         <div className="sidebar-footer">
           {user && (

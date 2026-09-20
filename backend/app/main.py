@@ -10,6 +10,7 @@ from app.schemas.health import HealthResponse
 from app.modules.auth.router import router as auth_router
 from app.modules.deficit.router import router as deficit_router
 from app.modules.orders.router import router as orders_router
+from app.modules.monitoring.router import router as monitoring_router
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Delestage API - National Load Shedding Platform",
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
     # Tells Swagger UI to send the Bearer token automatically
     swagger_ui_init_oauth={"usePkceWithAuthorizationCodeGrant": True},
@@ -60,3 +61,4 @@ async def health_check():
 app.include_router(auth_router)
 app.include_router(deficit_router)
 app.include_router(orders_router)
+app.include_router(monitoring_router)

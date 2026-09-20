@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import DeficitPage from './pages/DeficitPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import MonitoringPage from './pages/MonitoringPage';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ function App() {
               <Route path="deficit" element={<DeficitPage />} />
               <Route path="orders" element={<OrdersPage />} />
               <Route path="orders/:orderId" element={<OrderDetailPage />} />
+              <Route path="monitoring" element={<MonitoringPage />} />
             </Route>
           </Routes>
         </AuthProvider>

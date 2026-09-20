@@ -70,9 +70,9 @@ export default function Dashboard() {
             </li>
             <li>✅ M2 — Authentication, Roles &amp; Audit</li>
             <li>✅ M3 — Deficit Computation</li>
-            <li>🔄 M4 — Shed Orders (In Progress)</li>
-            <li>🔄 M5 — Allocation &amp; Feeder Selection (In Progress)</li>
-            <li>⬜ M6 — Real-time Monitoring</li>
+            <li>✅ M4 — Ordres de délestage (Shed Orders)</li>
+            <li>✅ M5 — Moteur d'allocation &amp; sélection équitable</li>
+            <li>🔄 M6 — Monitoring temps réel &amp; Hub WebSocket (En cours)</li>
             <li>⬜ M7 — BCC Execution</li>
             <li>⬜ M8 — Rotation Engine</li>
             <li>⬜ M9 — Administration &amp; Audit View</li>

@@ -238,3 +238,56 @@ export const removeFeederOverride = async (orderId: number, assignmentId: number
   const { data } = await apiClient.delete<ShedOrder>(`/orders/${orderId}/allocate/assignments/${assignmentId}`);
   return data;
 };
+
+// --- Real-time Monitoring & Telemetry (M6) ---
+
+export interface ShedEventOut {
+  id: number;
+  order_id: number;
+  feeder_id: string;
+  feeder_name: string;
+  bcc_id: string;
+  open_time: string;
+  close_time: string | null;
+  mw_actual: number;
+  duration_min: number;
+  ens_mwh: number;
+  status: string;
+  alarm_level: 'GREEN' | 'AMBER' | 'RED';
+}
+
+export interface RegionalSummary {
+  entity_id: string;
+  name: string;
+  target_mw: number;
+  actual_mw: number;
+  gap_mw: number;
+  open_feeders: number;
+}
+
+export interface MonitoringSummary {
+  timestamp: string;
+  order_id: number | null;
+  target_mw: number;
+  actual_mw: number;
+  gap_mw: number;
+  open_feeders_count: number;
+  active_bccs_count: number;
+  max_duration_min: number;
+  total_ens_mwh: number;
+  amber_alarms_count: number;
+  red_alarms_count: number;
+  crc_breakdown: RegionalSummary[];
+  bcc_breakdown: RegionalSummary[];
+  active_events: ShedEventOut[];
+}
+
+export const getMonitoringSummary = async (): Promise<MonitoringSummary> => {
+  const { data } = await apiClient.get<MonitoringSummary>('/monitoring/summary');
+  return data;
+};
+
+export const simulateToggle = async (feederId: string, openState: boolean): Promise<{ status: string; event_id: number }> => {
+  const { data } = await apiClient.post('/monitoring/simulate', { feeder_id: feederId, open_state: openState });
+  return data;
+};
