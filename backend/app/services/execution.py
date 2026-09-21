@@ -237,6 +237,7 @@ async def confirm_opening(db: AsyncSession, req: ConfirmOpenRequest, user: User)
     feeder.status = FeederStatus.OPEN
     if feeder.history:
         feeder.history.last_shed_start = open_time
+        feeder.history.last_shed_end = None
 
     # Record in cryptographic audit trail
     await audit.log(
