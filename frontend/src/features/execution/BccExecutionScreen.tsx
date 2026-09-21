@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getBccDashboard,
@@ -71,12 +72,20 @@ export default function BccExecutionScreen() {
       setJustificationFeeder(null);
       setJustificationText('');
     },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert('❌ Échec de la manœuvre d\'ouverture : ' + (e.response?.data?.detail ?? 'Erreur inconnue'));
+    },
   });
 
   const closeMutation = useMutation({
     mutationFn: (eventId: number) => confirmClose(eventId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bccDashboard', selectedBcc] });
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert('❌ Échec du rétablissement : ' + (e.response?.data?.detail ?? 'Erreur inconnue'));
     },
   });
 
@@ -177,6 +186,22 @@ export default function BccExecutionScreen() {
           <span className="kpi-subtext">sur {dashboard.feeders.length} départs totaux</span>
         </div>
       </div>
+
+      {dashboard.target_mw === 0 && (
+        <div className="bcc-notice-banner" style={{
+          background: '#ebf8ff',
+          border: '1px solid #bee3f8',
+          borderLeft: '4px solid #3182ce',
+          borderRadius: '6px',
+          padding: '0.85rem 1.25rem',
+          margin: '0 0 1.5rem 0',
+          fontSize: '0.88rem',
+          color: '#2b6cb0',
+          lineHeight: '1.5',
+        }}>
+          ℹ️ <strong>Cible régionale à 0.0 MW ?</strong> Aucun quota de délestage n'est encore assigné à ce centre. Pour qu'une cible en MW (ex: 71 MW) soit attribuée et que des départs soient recommandés (badge violet), assurez-vous d'avoir cliqué sur <strong>« Lancer l'allocation »</strong> puis <strong>« ⚡ Activer »</strong> dans la page <Link to="/orders" style={{ color: '#2b6cb0', fontWeight: 600, textDecoration: 'underline' }}>Ordres de délestage ↗</Link>.
+        </div>
+      )}
 
       {/* Rotation Alerts & 1-Click Execution (UC6) */}
       <RotationPanel bccId={selectedBcc} />

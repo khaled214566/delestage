@@ -22,7 +22,7 @@ from app.schemas.order import (
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
-_dispatcher_only = require_role(UserRole.DISPATCHER)
+_dispatcher_or_admin = require_role(UserRole.DISPATCHER, UserRole.ADMIN)
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ _dispatcher_only = require_role(UserRole.DISPATCHER)
 async def create_order(
     body: ShedOrderCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.create_order(db, plan_id=body.plan_id, actor=user)
@@ -76,7 +76,7 @@ async def get_order(
 async def allocate_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.run_allocation(db, order_id=order_id, actor=user)
@@ -95,7 +95,7 @@ async def add_feeder(
     node_id: int,
     body: ManualFeederAdd,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.add_feeder_override(
@@ -111,7 +111,7 @@ async def remove_feeder(
     order_id: int,
     assignment_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.remove_feeder_override(
@@ -130,7 +130,7 @@ async def remove_feeder(
 async def validate_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.validate_order(db, order_id=order_id, actor=user)
@@ -143,7 +143,7 @@ async def validate_order(
 async def activate_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.activate_order(db, order_id=order_id, actor=user)
@@ -156,7 +156,7 @@ async def activate_order(
 async def complete_order(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.complete_order(db, order_id=order_id, actor=user)
@@ -170,7 +170,7 @@ async def cancel_order(
     order_id: int,
     body: CancelRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> ShedOrderOut:
     try:
         order = await order_service.cancel_order(

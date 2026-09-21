@@ -31,7 +31,7 @@ from app.schemas.deficit import (
 
 router = APIRouter(prefix="/api/deficit", tags=["deficit"])
 
-_dispatcher_only = require_role(UserRole.DISPATCHER)
+_dispatcher_or_admin = require_role(UserRole.DISPATCHER, UserRole.ADMIN)
 
 
 async def _get_plan_or_404(db: AsyncSession, plan_id: int) -> DeficitPlan:
@@ -55,7 +55,7 @@ async def _get_slot_or_404(db: AsyncSession, plan_id: int, slot_id: int) -> Defi
 async def create_plan(
     body: DeficitPlanCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> DeficitPlan:
     try:
         return await deficit_service.get_or_create_plan(db, plan_date=body.date, mode=body.mode, actor=user)
@@ -90,7 +90,7 @@ async def upsert_slot(
     plan_id: int,
     body: DeficitSlotIn,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> DeficitSlot:
     plan = await _get_plan_or_404(db, plan_id)
     slot, _status = await deficit_service.upsert_slot(
@@ -107,7 +107,7 @@ async def edit_slot(
     slot_id: int,
     body: DeficitSlotPatch,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> DeficitSlot:
     slot = await _get_slot_or_404(db, plan_id, slot_id)
     patch = body.model_dump(exclude_unset=True)
@@ -122,7 +122,7 @@ async def import_csv(
     plan_id: int,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> CsvImportResult:
     plan = await _get_plan_or_404(db, plan_id)
     raw = (await file.read()).decode("utf-8")
@@ -140,7 +140,7 @@ async def import_csv(
 async def validate_plan(
     plan_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(_dispatcher_only),
+    user: User = Depends(_dispatcher_or_admin),
 ) -> DeficitPlan:
     plan = await _get_plan_or_404(db, plan_id)
     try:

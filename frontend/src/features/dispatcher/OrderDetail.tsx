@@ -110,7 +110,7 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
           <div><strong>Créé le:</strong> {new Date(order.created_at).toLocaleString('fr-FR')}</div>
         </div>
 
-        {user?.role === 'DISPATCHER' && (
+        {(user?.role === 'DISPATCHER' || user?.role === 'ADMIN') && (
           <div className="order-actions">
             {order.status === 'DRAFT' && (
               <button 

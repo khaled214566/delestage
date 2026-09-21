@@ -26,6 +26,26 @@ const DEMO_CSV =
   '20:30-21:00,4150,3800,200,50\n' +
   '21:00-21:30,4000,3800,200,50\n';
 
+const DEMO_REALTIME_CSV =
+  'slot,demandMW,generationMW,importsMW,marginMW\n' +
+  '19:00-19:30,4400,3800,200,50\n' +
+  '19:30-20:00,4450,3800,250,50\n' +
+  '20:00-20:30,4400,3800,200,50\n' +
+  '20:30-21:00,4250,3800,200,50\n';
+
+function downloadSampleCsv(mode: 'J-1' | 'REAL_TIME') {
+  const content = mode === 'REAL_TIME' ? DEMO_REALTIME_CSV : DEMO_CSV;
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `modele_deficit_${mode === 'REAL_TIME' ? 'temps_reel' : 'j1'}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
 function fmt(n: number) {
   return n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 }
@@ -130,12 +150,12 @@ function SlotRow({ plan, slot }: { plan: DeficitPlan; slot: DeficitSlot }) {
 export default function DeficitPlanner() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isDispatcher = user?.role === 'DISPATCHER';
+  const isDispatcherOrAdmin = user?.role === 'DISPATCHER' || user?.role === 'ADMIN';
 
-  const { data: plans } = useQuery({ queryKey: ['deficit-plans'], queryFn: listPlans, enabled: isDispatcher });
+  const { data: plans } = useQuery({ queryKey: ['deficit-plans'], queryFn: listPlans, enabled: isDispatcherOrAdmin });
   const [planId, setPlanId] = useState<number | null>(null);
-  const [date, setDate] = useState(DEMO_DATE);
-  const [mode, setMode] = useState<OrderMode>('J-1');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [mode, setMode] = useState<OrderMode>('REAL_TIME');
   const [csvError, setCsvError] = useState<string | null>(null);
 
   const { data: plan } = useQuery({
@@ -166,6 +186,21 @@ export default function DeficitPlanner() {
     },
   });
 
+  const realTimeDemoMutation = useMutation({
+    mutationFn: async () => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const created = await createPlan(todayStr, 'REAL_TIME');
+      await importCsv(created.id, DEMO_REALTIME_CSV);
+      return created.id;
+    },
+    onSuccess: (id) => {
+      setCsvError(null);
+      setPlanId(id);
+      queryClient.invalidateQueries({ queryKey: ['deficit-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['deficit-plan', id] });
+    },
+  });
+
   const csvMutation = useMutation({
     mutationFn: (file: File) => file.text().then((text) => importCsv(planId as number, text)),
     onSuccess: () => {
@@ -180,11 +215,11 @@ export default function DeficitPlanner() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deficit-plan', planId] }),
   });
 
-  if (!isDispatcher) {
+  if (!isDispatcherOrAdmin) {
     return (
       <div className="info deficit-planner">
         <h2>Calcul du déficit (UC1)</h2>
-        <p className="module-sub">Réservé au rôle Dispatcher.</p>
+        <p className="module-sub">Réservé aux rôles Dispatcher et Admin.</p>
       </div>
     );
   }
@@ -201,25 +236,41 @@ export default function DeficitPlanner() {
           <option value="">— Choisir un plan —</option>
           {plans?.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.date} ({p.mode}) — {p.status} — {p.slots.length} créneaux
+              #{p.id} · {p.date} ({p.mode}) — {p.status} — {p.slots.length} créneaux
             </option>
           ))}
         </select>
 
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <select value={mode} onChange={(e) => setMode(e.target.value as OrderMode)}>
-          <option value="J-1">J-1</option>
           <option value="REAL_TIME">Temps réel</option>
+          <option value="J-1">J-1</option>
         </select>
         <button className="btn-small" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
           Créer / ouvrir
         </button>
         <button
           className="btn-small btn-primary"
+          onClick={() => realTimeDemoMutation.mutate()}
+          disabled={realTimeDemoMutation.isPending}
+          title="Créer un plan Temps Réel avec déficit de 350 MW"
+        >
+          {realTimeDemoMutation.isPending ? 'Chargement…' : '⚡ Exemple Temps Réel (350 MW)'}
+        </button>
+        <button
+          className="btn-small btn-ghost"
           onClick={() => demoMutation.mutate()}
           disabled={demoMutation.isPending}
+          title="Charger l'exemple de démo J-1 (300 MW)"
         >
-          {demoMutation.isPending ? 'Chargement…' : 'Charger le scénario de démo'}
+          Exemple J-1
+        </button>
+        <button
+          className="btn-small btn-ghost"
+          onClick={() => downloadSampleCsv(mode)}
+          title="Télécharger le fichier modèle CSV prêt à être édité et importé"
+        >
+          ⬇ Modèle CSV ({mode})
         </button>
       </div>
 
