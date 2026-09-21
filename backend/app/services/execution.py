@@ -48,16 +48,35 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
     target_mw = 0.0
     planned_feeder_ids: set[str] = set()
     if active_order:
-        node_query = select(AllocationNode).where(
-            AllocationNode.order_id == active_order.id,
-            AllocationNode.entity_id == bcc_id,
+        node_query = (
+            select(AllocationNode)
+            .options(selectinload(AllocationNode.slot))
+            .where(
+                AllocationNode.order_id == active_order.id,
+                AllocationNode.entity_id == bcc_id,
+            )
         )
-        bcc_node = (await db.execute(node_query)).scalar_one_or_none()
-        if bcc_node:
-            target_mw = bcc_node.target_mw
-            # Fetch assigned feeders
-            fa_query = select(FeederAssignment.feeder_id).where(FeederAssignment.node_id == bcc_node.id)
+        bcc_nodes = list((await db.execute(node_query)).scalars().all())
+        if bcc_nodes:
+            # Match current time slot if available
+            current_node = None
+            for bn in bcc_nodes:
+                if bn.slot and bn.slot.slot_start <= now <= bn.slot.slot_end:
+                    current_node = bn
+                    break
+            # Fallback to first non-zero target slot, or first slot
+            if not current_node:
+                current_node = next((bn for bn in bcc_nodes if bn.target_mw > 0), bcc_nodes[0])
+
+            target_mw = current_node.target_mw
+
+            # Fetch planned feeders for this slot (or across all slots if none)
+            fa_query = select(FeederAssignment.feeder_id).where(FeederAssignment.node_id == current_node.id)
             planned_feeder_ids = set((await db.execute(fa_query)).scalars().all())
+            if not planned_feeder_ids:
+                all_node_ids = [bn.id for bn in bcc_nodes]
+                fa_query = select(FeederAssignment.feeder_id).where(FeederAssignment.node_id.in_(all_node_ids))
+                planned_feeder_ids = set((await db.execute(fa_query)).scalars().all())
 
     # 3. Load all feeders in this BCC with substation and history
     feeders_query = (
@@ -138,6 +157,7 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
         gap_mw=gap_mw,
         open_feeders_count=len(open_events),
         feeders=items,
+        order_id=active_order.id if active_order else None,
     )
 
 
@@ -224,7 +244,7 @@ async def confirm_opening(db: AsyncSession, req: ConfirmOpenRequest, user: User)
         actor_id=str(user.id),
         actor_name=user.name,
         action="FEEDER_OPENED",
-        entity="feeder",
+        entity_type="feeder",
         entity_id=feeder.id,
         payload={
             "feeder_id": feeder.id,
@@ -309,7 +329,7 @@ async def confirm_restoration(db: AsyncSession, event_id: int, req: ConfirmClose
         actor_id=str(user.id),
         actor_name=user.name,
         action="FEEDER_RESTORED",
-        entity="feeder",
+        entity_type="feeder",
         entity_id=feeder.id,
         payload={
             "feeder_id": feeder.id,

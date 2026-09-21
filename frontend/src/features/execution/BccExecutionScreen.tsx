@@ -21,12 +21,19 @@ const BCC_LIST = [
 ];
 
 export default function BccExecutionScreen() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
 
   // Determine initial BCC: operator's scoped BCC or BCC1
   const defaultBcc = (user?.role === 'BCC_OPERATOR' && user.scope_id) ? user.scope_id : 'BCC1';
   const [selectedBcc, setSelectedBcc] = useState(defaultBcc);
+
+  // Sync selectedBcc once user loads if user is a scoped BCC operator
+  useEffect(() => {
+    if (user?.role === 'BCC_OPERATOR' && user.scope_id && selectedBcc !== user.scope_id) {
+      setSelectedBcc(user.scope_id);
+    }
+  }, [user, selectedBcc]);
 
   // Per-feeder editable MW input
   const [editedMw, setEditedMw] = useState<Record<string, number>>({});
@@ -42,16 +49,19 @@ export default function BccExecutionScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  const isBccAllowed = !user || user.role !== 'BCC_OPERATOR' || user.scope_id === selectedBcc;
+
   const { data: dashboard, isLoading, error } = useQuery<BccExecutionDashboard>({
     queryKey: ['bccDashboard', selectedBcc],
     queryFn: () => getBccDashboard(selectedBcc),
+    enabled: !isAuthLoading && isBccAllowed,
     refetchInterval: 4000,
   });
 
   const openMutation = useMutation({
     mutationFn: (payload: { feederId: string; mwActual: number; justification?: string }) =>
       confirmOpen({
-        order_id: 1, // Active order
+        order_id: dashboard?.order_id ?? 1, // Active order ID
         feeder_id: payload.feederId,
         mw_actual: payload.mwActual,
         justification: payload.justification,
@@ -98,8 +108,16 @@ export default function BccExecutionScreen() {
     return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
   };
 
-  if (isLoading && !dashboard) return <div className="status loading">Chargement de la console BCC...</div>;
-  if (error || !dashboard) return <div className="status error">Impossible de charger les données du BCC.</div>;
+  const errorMessage =
+    (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+    (error instanceof Error ? error.message : 'Impossible de charger les données du BCC.');
+
+  if ((isLoading || isAuthLoading) && !dashboard) {
+    return <div className="status loading">Chargement de la console BCC...</div>;
+  }
+  if (error || !dashboard) {
+    return <div className="status error">Impossible de charger les données du BCC : {errorMessage}</div>;
+  }
 
   const openFeeders = dashboard.feeders.filter(f => f.status === 'OPEN');
   const availableFeeders = dashboard.feeders.filter(f => f.status !== 'OPEN' && f.priority !== 'P0' && !f.is_critical);

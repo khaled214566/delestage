@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import RequireAuth from './components/RequireAuth';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
-import Dashboard from './pages/Dashboard';
+
 import DeficitPage from './pages/DeficitPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
@@ -27,8 +27,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/citizen" element={<CitizenPage />} />
             <Route element={<RequireAuth><Layout /></RequireAuth>}>
-              <Route index element={<Dashboard />} />
-              <Route path="deficit" element={<DeficitPage />} />
+              <Route index element={<DeficitPage />} />
               <Route path="orders" element={<OrdersPage />} />
               <Route path="orders/:orderId" element={<OrderDetailPage />} />
               <Route path="monitoring" element={<MonitoringPage />} />

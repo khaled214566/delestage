@@ -13,9 +13,6 @@ export default function Layout() {
         </div>
         <nav className="sidebar-nav">
           <NavLink to="/" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} end>
-            Tableau de bord
-          </NavLink>
-          <NavLink to="/deficit" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
             Calcul du déficit
           </NavLink>
           <NavLink to="/orders" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>

@@ -139,6 +139,32 @@ async def validate_order(
     return _order_to_out(order)
 
 
+@router.post("/{order_id}/activate", response_model=ShedOrderOut)
+async def activate_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(_dispatcher_only),
+) -> ShedOrderOut:
+    try:
+        order = await order_service.activate_order(db, order_id=order_id, actor=user)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return _order_to_out(order)
+
+
+@router.post("/{order_id}/complete", response_model=ShedOrderOut)
+async def complete_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(_dispatcher_only),
+) -> ShedOrderOut:
+    try:
+        order = await order_service.complete_order(db, order_id=order_id, actor=user)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return _order_to_out(order)
+
+
 @router.post("/{order_id}/cancel", response_model=ShedOrderOut)
 async def cancel_order(
     order_id: int,

@@ -1,8 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getOrder, allocateOrder, validateOrder, cancelOrder, getPlan } from '../../api/client';
+import { getOrder, allocateOrder, validateOrder, cancelOrder, activateOrder, completeOrder, getPlan } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import AllocationTree from './AllocationTree';
+import OrderExecutionSummary from './OrderExecutionSummary';
 
 interface OrderDetailProps {
   orderId: number;
@@ -41,6 +42,16 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['order', orderId] }),
   });
 
+  const activateMutation = useMutation({
+    mutationFn: () => activateOrder(orderId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['order', orderId] }),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: () => completeOrder(orderId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['order', orderId] }),
+  });
+
   if (isLoading) return <div className="status loading">Chargement de l'ordre...</div>;
   if (error || !order) return <div className="status error">Erreur lors du chargement de l'ordre</div>;
 
@@ -49,6 +60,12 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
 
   const handleAllocate = () => allocateMutation.mutate();
   const handleValidate = () => validateMutation.mutate();
+  const handleActivate = () => activateMutation.mutate();
+  const handleComplete = () => {
+    if (confirm('Confirmer la clôture de cet ordre ? Cette action est irréversible.')) {
+      completeMutation.mutate();
+    }
+  };
   const handleCancel = () => {
     const reason = prompt('Raison de l\'annulation ?');
     if (reason) cancelMutation.mutate(reason);
@@ -122,6 +139,41 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
                 </button>
               </>
             )}
+            {order.status === 'VALIDATED' && (
+              <>
+                <button 
+                  className="btn-small btn-primary" 
+                  onClick={handleActivate}
+                  disabled={activateMutation.isPending}
+                >
+                  ⚡ Activer l'exécution
+                </button>
+                <button 
+                  className="btn-small btn-ghost" 
+                  onClick={handleCancel}
+                  disabled={cancelMutation.isPending}
+                >
+                  Annuler
+                </button>
+              </>
+            )}
+            {order.status === 'ACTIVE' && (
+              <button 
+                className="btn-small btn-primary" 
+                onClick={handleComplete}
+                disabled={completeMutation.isPending}
+              >
+                ✅ Marquer comme terminé
+              </button>
+            )}
+          </div>
+        )}
+
+        {(order.status === 'VALIDATED' || order.status === 'ACTIVE') && (
+          <div className="bcc-link-section" style={{ marginTop: '12px' }}>
+            <Link to="/bcc" className="btn-small btn-primary">
+              🖥️ Ouvrir la console BCC
+            </Link>
           </div>
         )}
       </div>
@@ -132,10 +184,13 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
         </div>
       )}
 
+      {order.status === 'ACTIVE' && (
+        <OrderExecutionSummary orderId={order.id} />
+      )}
+
       {currentStepIndex >= LIFECYCLE_STEPS.indexOf('ALLOCATED') && (
         <div className="allocation-section">
           <h3>Arbre d'allocation</h3>
-          {/* We simplify by just passing all NATIONAL nodes for now since the backend might organize them per slot or just root nodes */}
           <AllocationTree 
             nodes={order.allocation_nodes.filter(n => n.level === 'NATIONAL')} 
             orderId={order.id}

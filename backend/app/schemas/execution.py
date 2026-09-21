@@ -41,3 +41,4 @@ class BccExecutionDashboard(BaseModel):
     gap_mw: float
     open_feeders_count: int
     feeders: List[FeederExecutionItem]
+    order_id: Optional[int] = None
