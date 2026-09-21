@@ -229,6 +229,16 @@ export const cancelOrder = async (orderId: number, reason: string): Promise<Shed
   return data;
 };
 
+export const activateOrder = async (orderId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/activate`);
+  return data;
+};
+
+export const completeOrder = async (orderId: number): Promise<ShedOrder> => {
+  const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/complete`);
+  return data;
+};
+
 export const addFeederOverride = async (orderId: number, nodeId: number, feederId: string): Promise<ShedOrder> => {
   const { data } = await apiClient.post<ShedOrder>(`/orders/${orderId}/allocate/nodes/${nodeId}/feeders`, { feeder_id: feederId });
   return data;
@@ -320,6 +330,7 @@ export interface BccExecutionDashboard {
   gap_mw: number;
   open_feeders_count: number;
   feeders: FeederExecutionItem[];
+  order_id?: number | null;
 }
 
 export interface ConfirmOpenPayload {

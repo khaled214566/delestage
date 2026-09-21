@@ -271,7 +271,7 @@ async def execute_rotation(
         actor_id=str(user.id),
         actor_name=user.name,
         action="FEEDER_ROTATED",
-        entity="feeder",
+        entity_type="feeder",
         entity_id=outgoing_feeder.id,
         payload={
             "outgoing_feeder_id": outgoing_feeder.id,

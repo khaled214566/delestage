@@ -511,7 +511,55 @@ async def cancel_order(
 
 
 # ---------------------------------------------------------------------------
-# 6. Read operations (scope-filtered)
+# 6. Activate order (start field execution)
+# ---------------------------------------------------------------------------
+
+async def activate_order(
+    db: AsyncSession, *, order_id: int, actor: User,
+) -> ShedOrder:
+    """Transition order from VALIDATED → ACTIVE (start field execution)."""
+    order = await _load_order(db, order_id)
+    _check_transition(order.status, OrderStatus.ACTIVE)
+
+    order.status = OrderStatus.ACTIVE
+    order.activated_at = datetime.now(UTC)
+    await db.flush()
+
+    await audit.log(
+        db, actor_id=str(actor.id), actor_name=actor.name,
+        action="ORDER_ACTIVATED", entity_type="shed_order",
+        entity_id=str(order.id), payload={},
+    )
+
+    return await _load_order(db, order_id)
+
+
+# ---------------------------------------------------------------------------
+# 7. Complete order
+# ---------------------------------------------------------------------------
+
+async def complete_order(
+    db: AsyncSession, *, order_id: int, actor: User,
+) -> ShedOrder:
+    """Transition order from ACTIVE → COMPLETED (all slots finished)."""
+    order = await _load_order(db, order_id)
+    _check_transition(order.status, OrderStatus.COMPLETED)
+
+    order.status = OrderStatus.COMPLETED
+    order.completed_at = datetime.now(UTC)
+    await db.flush()
+
+    await audit.log(
+        db, actor_id=str(actor.id), actor_name=actor.name,
+        action="ORDER_COMPLETED", entity_type="shed_order",
+        entity_id=str(order.id), payload={},
+    )
+
+    return await _load_order(db, order_id)
+
+
+# ---------------------------------------------------------------------------
+# 8. Read operations (scope-filtered)
 # ---------------------------------------------------------------------------
 
 async def list_orders(db: AsyncSession, *, user: User) -> list[dict]:
