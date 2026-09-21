@@ -156,7 +156,10 @@ async def run_beat3_rotation(db: AsyncSession) -> dict:
     # Broadcast updated monitoring
     try:
         summary = await get_monitoring_summary(db)
-        await ws_manager.broadcast(summary.model_dump(mode="json"))
+        await ws_manager.broadcast({
+            "type": "MONITORING_SUMMARY",
+            "data": summary.model_dump(mode="json"),
+        })
     except Exception:
         pass
 
@@ -248,7 +251,10 @@ async def reset_demo(db: AsyncSession) -> dict:
     # Broadcast clean state
     try:
         summary = await get_monitoring_summary(db)
-        await ws_manager.broadcast(summary.model_dump(mode="json"))
+        await ws_manager.broadcast({
+            "type": "MONITORING_SUMMARY",
+            "data": summary.model_dump(mode="json"),
+        })
     except Exception:
         pass
 

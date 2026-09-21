@@ -292,7 +292,10 @@ async def execute_rotation(
 
     # 7. Broadcast updated telemetry
     summary = await monitoring_service.get_monitoring_summary(db)
-    await ws_manager.broadcast(summary.model_dump(mode="json"))
+    await ws_manager.broadcast({
+        "type": "MONITORING_SUMMARY",
+        "data": summary.model_dump(mode="json"),
+    })
 
     return ExecuteRotationResponse(
         status="SUCCESS",
