@@ -18,10 +18,19 @@ class SimulateToggleRequest(BaseModel):
     open_state: bool
 
 
+from app.services.live_telemetry import telemetry_engine, LiveTelemetrySnapshot
+
+
 @router.get("/summary", response_model=MonitoringSummary)
 async def get_summary(db: AsyncSession = Depends(get_db)):
     """Fetch current national and regional monitoring snapshot."""
     return await monitoring_service.get_monitoring_summary(db)
+
+
+@router.get("/telemetry/live", response_model=LiveTelemetrySnapshot)
+async def get_live_telemetry():
+    """Fetch current high-frequency (1 Hz) stochastic grid telemetry point and rolling 60s history."""
+    return telemetry_engine.get_snapshot()
 
 
 @router.post("/simulate", response_model=dict)

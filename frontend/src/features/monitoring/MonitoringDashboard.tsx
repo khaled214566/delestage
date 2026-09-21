@@ -4,6 +4,7 @@ import { getMonitoringSummary, simulateToggle, type MonitoringSummary } from '..
 import FeederStatusTable from './FeederStatusTable';
 import RegionalBreakdown from './RegionalBreakdown';
 import RotationPanel from '../execution/RotationPanel';
+import LiveGridTelemetry from './LiveGridTelemetry';
 
 export default function MonitoringDashboard() {
   const queryClient = useQueryClient();
@@ -108,6 +109,9 @@ export default function MonitoringDashboard() {
           )}
         </div>
       </div>
+
+      {/* High-frequency 1 Hz Live Grid Telemetry Strip */}
+      <LiveGridTelemetry />
 
       {/* KPI Cards Row */}
       <div className="kpi-grid">
