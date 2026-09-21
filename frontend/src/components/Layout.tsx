@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ErrorBoundary from './ErrorBoundary';
 import '../App.css';
 
 export default function Layout() {
@@ -50,7 +51,9 @@ export default function Layout() {
         </div>
       </aside>
       <main className="main-content">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );

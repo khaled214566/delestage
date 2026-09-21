@@ -260,7 +260,10 @@ async def confirm_opening(db: AsyncSession, req: ConfirmOpenRequest, user: User)
 
     # Broadcast telemetry
     summary = await monitoring_service.get_monitoring_summary(db)
-    await ws_manager.broadcast(summary.model_dump(mode="json"))
+    await ws_manager.broadcast({
+        "type": "MONITORING_SUMMARY",
+        "data": summary.model_dump(mode="json"),
+    })
 
     return event
 
@@ -346,6 +349,9 @@ async def confirm_restoration(db: AsyncSession, event_id: int, req: ConfirmClose
 
     # Broadcast telemetry
     summary = await monitoring_service.get_monitoring_summary(db)
-    await ws_manager.broadcast(summary.model_dump(mode="json"))
+    await ws_manager.broadcast({
+        "type": "MONITORING_SUMMARY",
+        "data": summary.model_dump(mode="json"),
+    })
 
     return event

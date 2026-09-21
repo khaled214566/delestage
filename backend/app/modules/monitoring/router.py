@@ -49,21 +49,35 @@ async def simulate_toggle(body: SimulateToggleRequest, db: AsyncSession = Depend
 async def websocket_monitoring(websocket: WebSocket):
     """
     Real-time telemetry WebSocket streaming endpoint.
-    Sends an immediate snapshot upon connection, then streams periodic heartbeat updates.
+    Sends initial snapshots, then keeps connection alive and receives incoming messages/pings.
     """
     await ws_manager.connect(websocket)
     try:
-        # Send initial snapshot immediately
+        # Send initial monitoring summary snapshot
         async with AsyncSessionLocal() as session:
             summary = await monitoring_service.get_monitoring_summary(session)
-            await websocket.send_text(summary.model_dump_json())
+            await ws_manager.send_message(websocket, {
+                "type": "MONITORING_SUMMARY",
+                "data": summary.model_dump(mode="json"),
+            })
 
-        # Keep connection alive with periodic updates
+        # Send initial live telemetry snapshot
+        latest_pt = telemetry_engine.history[-1] if telemetry_engine.history else None
+        if latest_pt:
+            await ws_manager.send_message(websocket, {
+                "type": "LIVE_TELEMETRY_TICK",
+                "data": latest_pt.model_dump(mode="json"),
+            })
+
+        # Heartbeat loop: periodically refresh summary every 4s, safely using per-connection lock
         while True:
-            await asyncio.sleep(3.0)
+            await asyncio.sleep(4.0)
             async with AsyncSessionLocal() as session:
                 summary = await monitoring_service.get_monitoring_summary(session)
-                await websocket.send_text(summary.model_dump_json())
+                await ws_manager.send_message(websocket, {
+                    "type": "MONITORING_SUMMARY",
+                    "data": summary.model_dump(mode="json"),
+                })
 
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)

@@ -223,5 +223,8 @@ async def simulate_event_toggle(
 
     # Broadcast updated telemetry to all live WebSocket dashboards
     summary = await get_monitoring_summary(db)
-    await ws_manager.broadcast(summary.model_dump(mode="json"))
+    await ws_manager.broadcast({
+        "type": "MONITORING_SUMMARY",
+        "data": summary.model_dump(mode="json"),
+    })
     return target_ev
