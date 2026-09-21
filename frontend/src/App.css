@@ -1,3 +1,16 @@
+/* Global input text visibility guarantee across all browsers and modes */
+input, select, textarea {
+  color: #1a202c !important;
+  -webkit-text-fill-color: #1a202c !important;
+  background-color: #ffffff;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #718096 !important;
+  -webkit-text-fill-color: #718096 !important;
+  opacity: 1;
+}
+
 .app {
   max-width: 800px;
   margin: 0 auto;
@@ -2271,26 +2284,79 @@ header p {
 .text-blue { color: #3182ce; }
 .text-dark { color: #2d3748; }
 
-.citizen-search-bar {
+.citizen-search-section {
   max-width: 1200px;
   margin: 0 auto 1.5rem;
   padding: 0 1.5rem;
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-.citizen-search-bar input {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  border: 2px solid #cbd5e0;
-  border-radius: 8px;
-  background: #fff;
+.citizen-search-bar {
+  display: flex;
+  gap: 0.75rem;
 }
 
-.citizen-search-bar input:focus {
+.search-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  font-size: 1.1rem;
+  color: #a0aec0;
+  pointer-events: none;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.8rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a202c !important;
+  -webkit-text-fill-color: #1a202c !important;
+  border: 2px solid #cbd5e0;
+  border-radius: 8px;
+  background-color: #ffffff !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input-wrapper input::placeholder {
+  color: #718096 !important;
+  -webkit-text-fill-color: #718096 !important;
+  opacity: 1;
+}
+
+.search-input-wrapper input:focus {
   outline: none;
   border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 0.75rem;
+  background: #edf2f7;
+  color: #718096;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.btn-clear-search:hover {
+  background: #e2e8f0;
+  color: #2d3748;
 }
 
 .btn-refresh {
@@ -2301,6 +2367,103 @@ header p {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-refresh:hover { background: #2c5282; }
+
+/* Filter chips */
+.citizen-filter-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chip {
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid #cbd5e0;
+  background: #fff;
+  color: #4a5568;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip:hover {
+  background: #f7fafc;
+  border-color: #a0aec0;
+}
+
+.chip-active {
+  background: #2b6cb0 !important;
+  color: #fff !important;
+  border-color: #2b6cb0 !important;
+}
+
+.chip-shedding.chip-active {
+  background: #dd6b20 !important;
+  border-color: #dd6b20 !important;
+}
+
+.chip-normal.chip-active {
+  background: #38a169 !important;
+  border-color: #38a169 !important;
+}
+
+.zone-code {
+  font-size: 0.75rem;
+  color: #718096;
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.governorates-tag {
+  background: #edf2f7;
+  color: #4a5568;
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.search-empty-card {
+  grid-column: 1 / -1;
+  background: #fff;
+  border: 2px dashed #cbd5e0;
+  border-radius: 12px;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #718096;
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.search-empty-card h3 {
+  margin: 0 0 0.5rem;
+  color: #2d3748;
+}
+
+.search-empty-card p {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+}
+
+.btn-reset-search {
+  background: #3182ce;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .citizen-zones-grid {

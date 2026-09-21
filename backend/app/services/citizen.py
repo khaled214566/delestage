@@ -15,35 +15,48 @@ from app.models.hierarchy import Feeder
 from app.models.enums import EventStatus, PriorityLevel
 
 
-async def get_citizen_view(db: AsyncSession) -> dict:
-    """
-    Return a public-safe snapshot of current and upcoming shedding.
+BCC_METADATA = {
+    "BCC1": {
+        "display_name": "Centre Tunis & Grand Tunis",
+        "region": "Nord",
+        "governorates": "Tunis, Ariana, Ben Arous, Manouba",
+    },
+    "BCC2": {
+        "display_name": "Centre Nabeul & Cap Bon",
+        "region": "Nord",
+        "governorates": "Nabeul, Zaghouan",
+    },
+    "BCC3": {
+        "display_name": "Centre Sousse & Sahel",
+        "region": "Nord",
+        "governorates": "Sousse, Monastir, Mahdia, Kairouan",
+    },
+    "BCC4": {
+        "display_name": "Centre Bizerte & Nord-Ouest",
+        "region": "Nord",
+        "governorates": "Bizerte, Béja, Jendouba, Le Kef, Siliana",
+    },
+    "BCC5": {
+        "display_name": "Centre Sfax & Centre-Ouest",
+        "region": "Sud",
+        "governorates": "Sfax, Sidi Bouzid, Kasserine",
+    },
+    "BCC6": {
+        "display_name": "Centre Gabès & Sud-Est",
+        "region": "Sud",
+        "governorates": "Gabès, Médenine, Tataouine, Djerba",
+    },
+    "BCC7": {
+        "display_name": "Centre Gafsa & Sud-Ouest",
+        "region": "Sud",
+        "governorates": "Gafsa, Tozeur, Kébili",
+    },
+}
 
-    Returns:
-        {
-          "generated_at": ISO timestamp,
-          "total_zones": int,
-          "currently_shedding": int,   # number of zones with OPEN event
-          "zones": [
-            {
-              "zone_id": "BCC1",
-              "display_name": "Centre de Conduite BCC1",
-              "status": "SHEDDING" | "NORMAL",
-              "events": [
-                {
-                  "started_at": ISO | None,
-                  "estimated_end": ISO | None,
-                  "alarm_level": "GREEN" | "AMBER" | "RED",
-                  "duration_min": int,
-                  "feeders_affected": int   # count only, not IDs
-                }
-              ]
-            }
-          ]
-        }
-    """
+
+async def get_citizen_view(db: AsyncSession) -> dict:
+    """Return a public-safe snapshot of current and upcoming shedding."""
     now = datetime.now(timezone.utc)
-    horizon = now + timedelta(hours=24)
 
     # Fetch active OPEN events (no P0 feeders — filtered by joining Feeder)
     stmt = (
@@ -62,17 +75,24 @@ async def get_citizen_view(db: AsyncSession) -> dict:
     zones: dict[str, dict] = {}
     for event, feeder in rows:
         zone = feeder.bcc_id
+        meta = BCC_METADATA.get(zone, {
+            "display_name": f"Centre {zone}",
+            "region": "National",
+            "governorates": zone,
+        })
         if zone not in zones:
             zones[zone] = {
                 "zone_id": zone,
-                "display_name": f"Zone {zone}",
+                "display_name": meta["display_name"],
+                "region": meta["region"],
+                "governorates": meta["governorates"],
                 "status": "SHEDDING",
                 "events": [],
             }
         duration = event.compute_duration(now) if event.open_time else 0.0
         estimated_end = None
         if event.open_time:
-            # Estimate based on default 45-min cap if no planned end
+            # Estimate based on default 45-min cap
             estimated_end = (event.open_time + timedelta(minutes=45)).isoformat()
 
         zones[zone]["events"].append({
@@ -80,26 +100,24 @@ async def get_citizen_view(db: AsyncSession) -> dict:
             "estimated_end": estimated_end,
             "alarm_level": event.get_alarm_level(45.0, now).value,
             "duration_min": int(duration),
-            "feeders_affected": 1,  # aggregated per event
+            "feeders_affected": 1,
         })
 
-    # Merge feeder counts: if same zone has multiple events, sum them
+    # Consolidate zones
     zone_list = []
     for zone_id in sorted(zones.keys()):
         z = zones[zone_id]
-        # Consolidate: count total feeders affected in this zone
-        total_feeders = len(z["events"])
-        z["feeders_affected"] = total_feeders
+        z["feeders_affected"] = len(z["events"])
         zone_list.append(z)
 
-    # Add zones that are currently NORMAL (no active events)
-    # We list all known BCC zones
-    all_bcc_ids = {"BCC1", "BCC2", "BCC3", "BCC4", "BCC5", "BCC6", "BCC7"}
-    for bcc in sorted(all_bcc_ids):
+    # Add zones that are currently NORMAL
+    for bcc, meta in sorted(BCC_METADATA.items()):
         if bcc not in zones:
             zone_list.append({
                 "zone_id": bcc,
-                "display_name": f"Zone {bcc}",
+                "display_name": meta["display_name"],
+                "region": meta["region"],
+                "governorates": meta["governorates"],
                 "status": "NORMAL",
                 "events": [],
                 "feeders_affected": 0,
@@ -110,7 +128,7 @@ async def get_citizen_view(db: AsyncSession) -> dict:
 
     return {
         "generated_at": now.isoformat(),
-        "total_zones": len(all_bcc_ids),
+        "total_zones": len(BCC_METADATA),
         "currently_shedding": len(zones),
         "zones": zone_list,
     }
