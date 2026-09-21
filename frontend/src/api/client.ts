@@ -585,6 +585,8 @@ export interface CitizenEvent {
 export interface CitizenZone {
   zone_id: string;
   display_name: string;
+  region?: string;
+  governorates?: string;
   status: 'SHEDDING' | 'NORMAL';
   events: CitizenEvent[];
   feeders_affected: number;
