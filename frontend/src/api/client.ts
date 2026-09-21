@@ -517,11 +517,32 @@ export const verifyAuditChain = async (): Promise<ChainVerifyResponse> => {
   return data;
 };
 
+export const downloadAuditCsv = async (action?: string, actor?: string): Promise<void> => {
+  const params: Record<string, string> = {};
+  if (action) params.action = action;
+  if (actor) params.actor = actor;
+
+  const response = await apiClient.get('/admin/audit/export.csv', {
+    params,
+    responseType: 'blob',
+  });
+
+  const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.setAttribute('download', `audit_log_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
 export const exportAuditCsv = (action?: string, actor?: string): string => {
   const params = new URLSearchParams();
   if (action) params.set('action', action);
   if (actor) params.set('actor', actor);
-  // Return URL for direct download link (browser handles file)
   const base = '/api/admin/audit/export.csv';
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;

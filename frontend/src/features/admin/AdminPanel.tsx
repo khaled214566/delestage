@@ -2,16 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getParameters, patchParameters,
   getUsers, createUser, toggleUser,
-  getAuditLogs, verifyAuditChain,
+  getAuditLogs, verifyAuditChain, downloadAuditCsv,
   type ParametersData, type UserData, type AuditLogEntry, type ChainVerifyResponse,
   type UserCreatePayload,
 } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Tab = 'params' | 'users' | 'audit';
 
 // ─── Parameters Tab ──────────────────────────────────────────────────────────
 
 function ParametersTab() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [params, setParams] = useState<ParametersData | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ max_duration_min: 45, rest_time_min: 180, slot_size_min: 30, rotation_warn_pct: 80 });
@@ -48,8 +52,15 @@ function ParametersTab() {
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h3>⚙️ Paramètres Système</h3>
-        {!editing && (
+        <div className="header-title-group">
+          <h3>⚙️ Paramètres Système</h3>
+          {!isAdmin && (
+            <span className="badge-readonly" title="Seuls les administrateurs peuvent modifier les paramètres">
+              🔒 Lecture seule (Accès réservé ADMIN)
+            </span>
+          )}
+        </div>
+        {!editing && isAdmin && (
           <button className="btn-edit" onClick={() => { setEditing(true); setMsg(''); }}>
             ✏️ Modifier
           </button>
@@ -136,6 +147,9 @@ const ROLES = ['DISPATCHER', 'BCC_OPERATOR', 'CRC_OPERATOR', 'ADMIN'];
 const SCOPE_TYPES = ['national', 'bcc', 'crc'];
 
 function UsersTab() {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const [users, setUsers] = useState<UserData[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<UserCreatePayload>({ username: '', name: '', password: '', role: 'BCC_OPERATOR', scope_type: 'bcc', scope_id: null });
@@ -188,15 +202,24 @@ function UsersTab() {
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h3>👥 Gestion des Utilisateurs</h3>
-        <button className="btn-edit" onClick={() => { setShowCreate(!showCreate); setMsg(''); }}>
-          {showCreate ? '✖ Fermer' : '➕ Nouvel utilisateur'}
-        </button>
+        <div className="header-title-group">
+          <h3>👥 Gestion des Utilisateurs</h3>
+          {!isAdmin && (
+            <span className="badge-readonly">
+              🔒 Lecture seule (Création réservée ADMIN)
+            </span>
+          )}
+        </div>
+        {isAdmin && (
+          <button className="btn-edit" onClick={() => { setShowCreate(!showCreate); setMsg(''); }}>
+            {showCreate ? '✖ Fermer' : '➕ Nouvel utilisateur'}
+          </button>
+        )}
       </div>
 
       {msg && <div className={`admin-msg ${msg.startsWith('✅') ? 'admin-msg-ok' : 'admin-msg-err'}`}>{msg}</div>}
 
-      {showCreate && (
+      {showCreate && isAdmin && (
         <div className="create-user-form">
           <h4>Créer un compte</h4>
           <div className="form-grid">
@@ -268,10 +291,14 @@ function UsersTab() {
                 </span>
               </td>
               <td>
-                <button className={`btn-toggle ${u.is_active ? 'btn-deactivate' : 'btn-activate'}`}
-                  onClick={() => handleToggle(u.id)}>
-                  {u.is_active ? 'Désactiver' : 'Activer'}
-                </button>
+                {isAdmin ? (
+                  <button className={`btn-toggle ${u.is_active ? 'btn-deactivate' : 'btn-activate'}`}
+                    onClick={() => handleToggle(u.id)}>
+                    {u.is_active ? 'Désactiver' : 'Activer'}
+                  </button>
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
               </td>
             </tr>
           ))}
@@ -293,6 +320,8 @@ function AuditTab() {
   const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const PAGE_SIZE = 50;
+
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -317,6 +346,18 @@ function AuditTab() {
     }
   };
 
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      await downloadAuditCsv(actionFilter || undefined, actorFilter || undefined);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert('Erreur lors de l\'export CSV : ' + (e.response?.data?.detail ?? 'Échec du téléchargement'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const actionColor = (action: string) => {
@@ -337,16 +378,28 @@ function AuditTab() {
             onChange={e => { setActionFilter(e.target.value); setPage(1); }} />
           <input placeholder="Filtrer acteur…" value={actorFilter}
             onChange={e => { setActorFilter(e.target.value); setPage(1); }} />
-          <button className="btn-verify" onClick={handleVerify} disabled={verifying}>
+          <button className="btn-verify" onClick={handleVerify} disabled={verifying} title="Vérifier l'intégrité cryptographique SHA-256 de toute la chaîne">
             {verifying ? '🔐 Vérification…' : '🔐 Vérifier la chaîne'}
           </button>
-          <a
+          <button
             className="btn-export"
-            href={`/api/admin/audit/export.csv${actionFilter ? `?action=${actionFilter}` : ''}`}
-            download="audit_log.csv"
+            onClick={handleExportCsv}
+            disabled={exporting}
+            title="Télécharger l'intégralité du journal d'audit au format tableur CSV"
           >
-            ⬇ CSV
-          </a>
+            {exporting ? '⏳ Téléchargement…' : '⬇ Exporter CSV'}
+          </button>
+        </div>
+      </div>
+
+      <div className="audit-help-box">
+        <div className="help-row">
+          <span className="help-badge">🔐 Vérifier la chaîne</span>
+          <span>Re-calcule mathématiquement toutes les empreintes SHA-256 depuis seq=1 pour certifier l'absence d'altération en base.</span>
+        </div>
+        <div className="help-row">
+          <span className="help-badge">⬇ Exporter CSV</span>
+          <span>Enregistre toutes les entrées filtrées dans un fichier <code>.csv</code> structuré et directement ouvrable sous Excel.</span>
         </div>
       </div>
 

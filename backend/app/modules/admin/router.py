@@ -164,11 +164,13 @@ async def export_audit_csv(
     action: str | None = None,
     actor: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _current: User = Depends(_require_admin),
+    _current: User = Depends(_require_admin_or_dispatcher),
 ):
     _, items = await list_audit_logs(db, page=1, page_size=10_000, action_filter=action, actor_filter=actor)
 
     output = io.StringIO()
+    # Write UTF-8 BOM so Microsoft Excel on Windows parses accents properly
+    output.write("\ufeff")
     writer = csv.DictWriter(
         output,
         fieldnames=["seq", "timestamp", "actor_id", "actor_name", "action",
@@ -191,6 +193,7 @@ async def export_audit_csv(
     output.seek(0)
     return StreamingResponse(
         iter([output.getvalue()]),
-        media_type="text/csv",
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="audit_log.csv"'},
     )
+

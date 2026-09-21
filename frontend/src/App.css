@@ -2000,6 +2000,55 @@ header p {
   width: 150px;
 }
 
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.badge-readonly {
+  background: #edf2f7;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.audit-help-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #3182ce;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.82rem;
+  color: #4a5568;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.help-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  line-height: 1.4;
+}
+
+.help-badge {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border: 1px solid #bee3f8;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 .btn-verify {
   padding: 0.4rem 0.9rem;
   background: #553c9a;
@@ -2009,6 +2058,7 @@ header p {
   cursor: pointer;
   font-size: 0.82rem;
   font-weight: 600;
+  transition: background 0.15s;
 }
 
 .btn-verify:hover { background: #44337a; }
@@ -2018,15 +2068,19 @@ header p {
   padding: 0.4rem 0.9rem;
   background: #2b6cb0;
   color: #fff;
+  border: none;
   border-radius: 5px;
   font-size: 0.82rem;
   font-weight: 600;
-  text-decoration: none;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 0.3rem;
+  transition: background 0.15s;
 }
 
 .btn-export:hover { background: #2c5282; }
+.btn-export:disabled { opacity: 0.6; cursor: default; }
 
 .chain-verify-result {
   margin-bottom: 1rem;
