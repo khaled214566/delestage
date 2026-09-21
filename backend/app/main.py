@@ -18,12 +18,16 @@ from app.modules.public.router import router as public_router
 from app.modules.simulator.router import router as simulator_router
 from app.modules.evaluation.router import router as evaluation_router
 
+from app.services.live_telemetry import telemetry_engine
+
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up Delestage API")
+    await telemetry_engine.start()
     yield
+    await telemetry_engine.stop()
     logger.info("Shutting down Delestage API")
 
 app = FastAPI(

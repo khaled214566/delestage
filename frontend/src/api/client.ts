@@ -302,6 +302,30 @@ export const simulateToggle = async (feederId: string, openState: boolean): Prom
   return data;
 };
 
+// --- High-Frequency (1 Hz) Real-Time Grid Telemetry ---
+
+export interface LiveTelemetryPoint {
+  timestamp: string;
+  time_label: string;
+  demand_mw: number;
+  generation_mw: number;
+  imports_mw: number;
+  margin_mw: number;
+  deficit_mw: number;
+  frequency_hz: number;
+  delta_demand_mw: number;
+}
+
+export interface LiveTelemetrySnapshot {
+  current: LiveTelemetryPoint;
+  history: LiveTelemetryPoint[];
+}
+
+export const getLiveTelemetry = async (): Promise<LiveTelemetrySnapshot> => {
+  const { data } = await apiClient.get<LiveTelemetrySnapshot>('/monitoring/telemetry/live');
+  return data;
+};
+
 // --- BCC Execution (M7) ---
 
 export interface FeederExecutionItem {
