@@ -26,8 +26,9 @@ from app.engine.rules import (
 from app.engine.selector_greedy import select_feeders
 from app.models.deficit import DeficitPlan, DeficitSlot
 from app.models.enums import (
-    AllocationLevel, DeficitPlanStatus, FeederStatus, OrderStatus, PriorityLevel,
+    AllocationLevel, DeficitPlanStatus, EventStatus, FeederStatus, OrderStatus, PriorityLevel,
 )
+from app.models.event import ShedEvent
 from app.models.hierarchy import Bcc, Crc, Feeder, FeederHistory
 from app.models.order import AllocationNode, FeederAssignment, ShedOrder
 from app.models.parameters import Parameters
@@ -624,3 +625,62 @@ async def get_order(
     # should filter the tree display. The API returns the full tree and
     # lets the frontend decide what to show based on user scope.
     return order
+
+
+async def delete_order(
+    db: AsyncSession, *, order_id: int, actor: User,
+) -> None:
+    """Delete a shed order, its allocation tree, associated events, and the underlying deficit plan."""
+    order = await _load_order(db, order_id)
+    plan_id = order.plan_id
+
+    # 1. Clean up associated shed events and restore feeder status if open
+    events_res = await db.execute(select(ShedEvent).where(ShedEvent.order_id == order_id))
+    events = list(events_res.scalars().all())
+    for ev in events:
+        if ev.status == EventStatus.OPEN:
+            feeder = await db.get(Feeder, ev.feeder_id)
+            if feeder and feeder.status == FeederStatus.OPEN:
+                feeder.status = FeederStatus.CLOSED
+        await db.delete(ev)
+
+    # 2. Delete all allocation nodes (cascades to assignments)
+    for node in list(order.allocation_nodes):
+        await db.delete(node)
+
+    await audit.log(
+        db,
+        actor_id=str(actor.id),
+        actor_name=actor.name,
+        action="SHED_ORDER_DELETED",
+        entity_type="shed_order",
+        entity_id=str(order.id),
+        payload={
+            "plan_id": plan_id,
+            "previous_status": order.status.value,
+            "total_deficit_mw": order.total_deficit_mw,
+        },
+    )
+
+    await db.delete(order)
+
+    # 3. Totally remove the associated deficit plan so it doesn't reappear in the dropdown
+    if plan_id:
+        plan_res = await db.execute(
+            select(DeficitPlan)
+            .options(
+                selectinload(DeficitPlan.slots).selectinload(DeficitSlot.revisions)
+            )
+            .where(DeficitPlan.id == plan_id)
+        )
+        plan = plan_res.scalar_one_or_none()
+        if plan:
+            for slot in list(plan.slots):
+                for rev in list(slot.revisions):
+                    await db.delete(rev)
+                await db.delete(slot)
+            await db.delete(plan)
+
+    await db.flush()
+
+

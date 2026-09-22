@@ -160,6 +160,7 @@ export interface FeederAssignment {
 
 export interface AllocationNode {
   id: number;
+  slot_id?: number;
   level: AllocationLevel;
   entity_id: string;
   target_mw: number;
@@ -247,6 +248,10 @@ export const addFeederOverride = async (orderId: number, nodeId: number, feederI
 export const removeFeederOverride = async (orderId: number, assignmentId: number): Promise<ShedOrder> => {
   const { data } = await apiClient.delete<ShedOrder>(`/orders/${orderId}/allocate/assignments/${assignmentId}`);
   return data;
+};
+
+export const deleteOrder = async (orderId: number): Promise<void> => {
+  await apiClient.delete(`/orders/${orderId}`);
 };
 
 // --- Real-time Monitoring & Telemetry (M6) ---

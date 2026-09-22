@@ -31,6 +31,7 @@ class FeederAssignmentOut(BaseModel):
 
 class AllocationNodeOut(BaseModel):
     id: int
+    slot_id: Optional[int] = None
     level: AllocationLevel
     entity_id: str
     target_mw: float

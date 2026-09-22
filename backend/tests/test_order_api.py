@@ -118,3 +118,17 @@ async def test_cancel_order_api(client):
     r = await client.post(f"/api/orders/{order_id}/cancel", json={"reason": "Testing cancellation"}, headers=auth)
     assert r.status_code == 200
     assert r.json()["status"] == "CANCELLED"
+
+async def test_delete_order_api(client):
+    auth = await _login(client)
+    plan_id = await _setup_validated_plan(client, auth)
+    order_res = await client.post("/api/orders", json={"plan_id": plan_id}, headers=auth)
+    order_id = order_res.json()["id"]
+
+    r = await client.delete(f"/api/orders/{order_id}", headers=auth)
+    assert r.status_code == 204
+
+    # Verify order is gone
+    r_get = await client.get(f"/api/orders/{order_id}", headers=auth)
+    assert r_get.status_code == 404
+

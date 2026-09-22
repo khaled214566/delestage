@@ -181,6 +181,18 @@ async def cancel_order(
     return _order_to_out(order)
 
 
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(_dispatcher_or_admin),
+) -> None:
+    try:
+        await order_service.delete_order(db, order_id=order_id, actor=user)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+
+
 # ---------------------------------------------------------------------------
 # Serialization helper
 # ---------------------------------------------------------------------------
@@ -207,6 +219,7 @@ def _node_to_out(node):
 
     return AllocationNodeOut(
         id=node.id,
+        slot_id=node.slot_id,
         level=node.level,
         entity_id=node.entity_id,
         target_mw=node.target_mw,
