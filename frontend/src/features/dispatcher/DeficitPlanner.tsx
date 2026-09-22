@@ -219,7 +219,7 @@ export default function DeficitPlanner() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isDispatcherOrAdmin = user?.role === 'DISPATCHER' || user?.role === 'ADMIN';
+  const isDispatcher = user?.role === 'DISPATCHER';
 
   // Target date is always tomorrow (J-1 planning)
   const targetDate = useMemo(() => tomorrow(), []);
@@ -227,7 +227,7 @@ export default function DeficitPlanner() {
   const { data: plans } = useQuery({
     queryKey: ['deficit-plans'],
     queryFn: listPlans,
-    enabled: isDispatcherOrAdmin,
+    enabled: isDispatcher,
   });
 
   const [planId, setPlanId] = useState<number | null>(null);
@@ -355,12 +355,12 @@ export default function DeficitPlanner() {
     setPlanId(tomorrowPlan.id);
   }
 
-  if (!isDispatcherOrAdmin) {
+  if (!isDispatcher) {
     return (
       <div className="deficit-planner-container">
         <div className="deficit-card">
           <h1 className="page-main-title">Planification du Déficit J-1</h1>
-          <p className="module-sub">Réservé aux rôles Dispatcher et Admin.</p>
+          <p className="module-sub">Réservé au rôle Dispatcher.</p>
         </div>
       </div>
     );

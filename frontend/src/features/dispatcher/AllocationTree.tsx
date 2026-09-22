@@ -1,18 +1,28 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addFeederOverride, removeFeederOverride, type AllocationNode } from '../../api/client';
+import { addFeederOverride, removeFeederOverride, type AllocationNode, type DeficitSlot } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface AllocationTreeProps {
   nodes: AllocationNode[];
+  slots?: DeficitSlot[];
   orderId: number;
   orderStatus: string;
 }
 
-export default function AllocationTree({ nodes, orderId, orderStatus }: AllocationTreeProps) {
+function slotLabel(slot: DeficitSlot | { slot_start: string; slot_end: string }) {
+  const opts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' };
+  const start = new Date(slot.slot_start).toLocaleTimeString('fr-FR', opts);
+  const end = new Date(slot.slot_end).toLocaleTimeString('fr-FR', opts);
+  return `${start}–${end}`;
+}
+
+export default function AllocationTree({ nodes, slots = [], orderId, orderStatus }: AllocationTreeProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [allExpanded, setAllExpanded] = useState(false);
 
   const addOverride = useMutation({
     mutationFn: ({ nodeId, feederId }: { nodeId: number; feederId: string }) => addFeederOverride(orderId, nodeId, feederId),
@@ -24,64 +34,177 @@ export default function AllocationTree({ nodes, orderId, orderStatus }: Allocati
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['order', orderId] }),
   });
 
+  // Map each national root node to its deficit slot
+  const slotTabs = useMemo(() => {
+    return nodes.map((node, index) => {
+      const matchedSlot = slots.find((s) => s.id === node.slot_id);
+      const label = matchedSlot ? slotLabel(matchedSlot) : `Créneau #${index + 1}`;
+      return {
+        nodeId: node.id,
+        slotId: node.slot_id,
+        slot: matchedSlot,
+        nationalNode: node,
+        label,
+      };
+    });
+  }, [nodes, slots]);
+
+  const currentTab = slotTabs[activeTabIndex] || slotTabs[0];
+  const activeNode = currentTab?.nationalNode;
+  const activeSlot = currentTab?.slot;
+
+  // Open down to BCC level by default on tab switch
+  useEffect(() => {
+    if (!activeNode) return;
+    const defaultExp: Record<number, boolean> = { [activeNode.id]: true };
+    for (const crc of activeNode.children || []) {
+      defaultExp[crc.id] = true;
+    }
+    setExpanded(defaultExp);
+    setAllExpanded(false);
+  }, [activeNode?.id]);
+
   const toggleExpand = (id: number) => {
-    setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const getStatusClass = (node: AllocationNode) => {
-    if (node.shortfall_mw === 0) return 'status-ok';
-    if (node.shortfall_mw >= node.target_mw * 0.5) return 'status-critical';
-    return 'status-partial';
+  const toggleAll = () => {
+    if (!activeNode) return;
+    if (allExpanded) {
+      // Collapse back to just National
+      setExpanded({ [activeNode.id]: true });
+      setAllExpanded(false);
+    } else {
+      // Expand National, CRC, and BCC
+      const all: Record<number, boolean> = { [activeNode.id]: true };
+      for (const crc of activeNode.children || []) {
+        all[crc.id] = true;
+        for (const bcc of crc.children || []) {
+          all[bcc.id] = true;
+        }
+      }
+      setExpanded(all);
+      setAllExpanded(true);
+    }
   };
+
+  const getProgressPct = (achieved: number, target: number) => {
+    if (target <= 0) return achieved > 0 ? 100 : 0;
+    return Math.min(100, Math.round((achieved / target) * 100));
+  };
+
+  const renderStatusPill = (shortfall: number, target: number) => {
+    if (shortfall <= 0.01) {
+      return <span className="status-pill status-pill-ok">✓ Atteint</span>;
+    }
+    if (shortfall >= target * 0.5) {
+      return <span className="status-pill status-pill-critical">⚠️ Critique</span>;
+    }
+    return <span className="status-pill status-pill-partial">⏳ Partiel</span>;
+  };
+
+  const renderLevelBadge = (level: string) => {
+    switch (level) {
+      case 'NATIONAL':
+        return <span className="level-badge level-badge-national">NAT</span>;
+      case 'CRC':
+        return <span className="level-badge level-badge-crc">CRC</span>;
+      case 'BCC':
+        return <span className="level-badge level-badge-bcc">BCC</span>;
+      default:
+        return <span className="level-badge level-badge-feeder">{level}</span>;
+    }
+  };
+
+  if (!nodes || nodes.length === 0) {
+    return <div className="info">Aucun nœud d'allocation disponible. Lancez l'allocation pour cet ordre.</div>;
+  }
 
   const renderNode = (node: AllocationNode, indent: number) => {
-    const isExpanded = expanded[node.id];
-    const hasChildren = node.children.length > 0 || node.feeder_assignments.length > 0;
-    
+    const isExpanded = !!expanded[node.id];
+    const hasChildren = (node.children?.length > 0) || (node.feeder_assignments?.length > 0);
+    const pct = getProgressPct(node.achieved_mw, node.target_mw);
+
     return (
       <div key={`node-${node.id}`} className="tree-node-group">
         <div className={`tree-row level-${node.level.toLowerCase()}`}>
-          <div className="cell-entity" style={{ paddingLeft: `${indent * 20}px` }}>
-            {hasChildren && (
-              <button className="tree-toggle" onClick={() => toggleExpand(node.id)}>
+          <div className="cell-entity" style={{ paddingLeft: `${indent * 22}px` }}>
+            {hasChildren ? (
+              <button 
+                type="button" 
+                className="tree-toggle" 
+                onClick={() => toggleExpand(node.id)}
+                title={isExpanded ? 'Replier' : 'Déplier'}
+              >
                 {isExpanded ? '▼' : '▶'}
               </button>
+            ) : (
+              <span className="tree-toggle-spacer" />
             )}
-            {!hasChildren && <span className="tree-toggle-spacer" />}
-            <span className="entity-name">{node.level} {node.entity_id}</span>
+
+            {renderLevelBadge(node.level)}
+
+            <span className="entity-name">{node.entity_id}</span>
+
             {orderStatus === 'ALLOCATED' && user?.role === 'DISPATCHER' && node.level === 'BCC' && (
               <button 
-                className="btn-small btn-ghost" 
+                type="button"
+                className="btn-add-feeder" 
+                title="Ajouter manuellement un départ"
                 onClick={() => {
-                  const fId = prompt('ID du départ à ajouter ?');
-                  if (fId) addOverride.mutate({ nodeId: node.id, feederId: fId });
+                  const fId = prompt('ID du départ à ajouter (ex: F_TUNIS_10) ?');
+                  if (fId) addOverride.mutate({ nodeId: node.id, feederId: fId.trim() });
                 }}
               >
-                + Ajouter
+                + Départ
               </button>
             )}
           </div>
-          <div className="cell-target">{node.target_mw.toLocaleString('fr-FR')}</div>
-          <div className="cell-achieved">{node.achieved_mw.toLocaleString('fr-FR')}</div>
-          <div className="cell-shortfall">{node.shortfall_mw.toLocaleString('fr-FR')}</div>
+
+          <div className="cell-target">{node.target_mw.toLocaleString('fr-FR')} MW</div>
+          <div className="cell-achieved">{node.achieved_mw.toLocaleString('fr-FR')} MW</div>
+
+          <div className="cell-progress">
+            <div className="progress-cell">
+              <div className="progress-pct-label">{pct}%</div>
+              <div className="progress-mini-track">
+                <div 
+                  className={`progress-mini-fill ${pct >= 100 ? 'fill-success' : 'fill-warning'}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="cell-shortfall">
+            {node.shortfall_mw > 0 ? (
+              <span style={{ color: '#c53030', fontWeight: 600 }}>{node.shortfall_mw.toLocaleString('fr-FR')} MW</span>
+            ) : (
+              '0 MW'
+            )}
+          </div>
+
           <div className="cell-status">
-            <div className={`status-indicator ${getStatusClass(node)}`} />
+            {renderStatusPill(node.shortfall_mw, node.target_mw)}
           </div>
         </div>
-        
+
         {isExpanded && (
           <div className="tree-children">
-            {node.children.map(child => renderNode(child, indent + 1))}
-            {node.feeder_assignments.map(fa => (
+            {node.children?.map((child) => renderNode(child, indent + 1))}
+            {node.feeder_assignments?.map((fa) => (
               <div key={`fa-${fa.id}`} className="tree-row level-feeder">
-                <div className="cell-entity" style={{ paddingLeft: `${(indent + 1) * 20}px` }}>
+                <div className="cell-entity" style={{ paddingLeft: `${(indent + 1) * 22}px` }}>
                   <span className="tree-toggle-spacer" />
-                  <span className="entity-name">Départ {fa.feeder_name || fa.feeder_id}</span>
+                  <span className="level-badge level-badge-feeder">DÉPART</span>
+                  <span className="entity-name">{fa.feeder_name || fa.feeder_id}</span>
                   <span className="priority-badge">{fa.priority}</span>
                   {fa.is_manual && <span className="manual-badge">Manuel</span>}
                   {orderStatus === 'ALLOCATED' && user?.role === 'DISPATCHER' && fa.is_manual && (
                     <button 
-                      className="btn-small btn-ghost" 
+                      type="button"
+                      className="btn-remove-override" 
+                      title="Supprimer l'override manuel"
                       onClick={() => removeOverride.mutate(fa.id)}
                     >
                       ✕
@@ -89,10 +212,13 @@ export default function AllocationTree({ nodes, orderId, orderStatus }: Allocati
                   )}
                 </div>
                 <div className="cell-target">-</div>
-                <div className="cell-achieved">{fa.assigned_mw.toLocaleString('fr-FR')}</div>
+                <div className="cell-achieved">{fa.assigned_mw.toLocaleString('fr-FR')} MW</div>
+                <div className="cell-progress">
+                  <span className="priority-badge">{fa.priority}</span>
+                </div>
                 <div className="cell-shortfall">-</div>
                 <div className="cell-status">
-                  <div className="status-indicator status-ok" />
+                  <span className="status-pill status-pill-ok">✓ Assigné</span>
                 </div>
               </div>
             ))}
@@ -103,16 +229,111 @@ export default function AllocationTree({ nodes, orderId, orderStatus }: Allocati
   };
 
   return (
-    <div className="allocation-tree">
-      <div className="tree-header">
-        <div className="cell-entity">Entité</div>
-        <div className="cell-target">Cible (MW)</div>
-        <div className="cell-achieved">Réalisé (MW)</div>
-        <div className="cell-shortfall">Écart (MW)</div>
-        <div className="cell-status">Statut</div>
+    <div className="allocation-section">
+      {/* ── Créneaux Tabs Bar ── */}
+      {slotTabs.length > 1 && (
+        <div className="creneaux-tabs-bar">
+          {slotTabs.map((tab, idx) => {
+            const isSelected = idx === activeTabIndex;
+            const deficitMw = tab.nationalNode.target_mw;
+            const achievedMw = tab.nationalNode.achieved_mw;
+            const isComplete = tab.nationalNode.shortfall_mw === 0 && achievedMw > 0;
+            return (
+              <button
+                key={tab.nodeId}
+                type="button"
+                className={`creneau-tab-button ${isSelected ? 'active' : ''}`}
+                onClick={() => setActiveTabIndex(idx)}
+              >
+                <span className="creneau-tab-time">⏱️ {tab.label}</span>
+                <span className={`creneau-tab-badge ${isComplete ? 'badge-complete' : 'badge-deficit'}`}>
+                  {deficitMw.toLocaleString('fr-FR')} MW
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Active Créneau Summary Banner (Style Calcul du Déficit) ── */}
+      {activeSlot && activeNode && (
+        <div className="creneau-summary-card">
+          <div className="creneau-summary-header">
+            <div className="creneau-summary-title">
+              <span className="creneau-badge-time">⏱️ {currentTab.label}</span>
+              <h4>Créneau & Calcul du Déficit</h4>
+            </div>
+            <div className="creneau-coverage-badge">
+              Taux de couverture : <strong>{getProgressPct(activeNode.achieved_mw, activeNode.target_mw)}%</strong>
+            </div>
+          </div>
+
+          <div className="creneau-metrics-grid">
+            <div className="metric-pill">
+              <span className="metric-label">Demande</span>
+              <span className="metric-value">{activeSlot.demand_mw.toLocaleString('fr-FR')} MW</span>
+            </div>
+            <div className="metric-pill">
+              <span className="metric-label">Production</span>
+              <span className="metric-value">{activeSlot.generation_mw.toLocaleString('fr-FR')} MW</span>
+            </div>
+            <div className="metric-pill">
+              <span className="metric-label">Imports</span>
+              <span className="metric-value">{activeSlot.imports_mw.toLocaleString('fr-FR')} MW</span>
+            </div>
+            <div className="metric-pill">
+              <span className="metric-label">Marge</span>
+              <span className="metric-value">{activeSlot.margin_mw.toLocaleString('fr-FR')} MW</span>
+            </div>
+            <div className="metric-pill metric-pill-deficit">
+              <span className="metric-label">Déficit P_déficit</span>
+              <span className="metric-value deficit-val">{activeSlot.deficit_mw.toLocaleString('fr-FR')} MW</span>
+            </div>
+          </div>
+
+          <div className="creneau-progress-section">
+            <div className="progress-labels">
+              <span>Décrotage réalisé : <strong>{activeNode.achieved_mw.toLocaleString('fr-FR')} MW</strong></span>
+              <span>Cible de délestage : <strong>{activeNode.target_mw.toLocaleString('fr-FR')} MW</strong></span>
+            </div>
+            <div className="progress-track">
+              <div 
+                className={`progress-fill ${activeNode.shortfall_mw === 0 ? 'fill-success' : 'fill-warning'}`}
+                style={{ width: `${getProgressPct(activeNode.achieved_mw, activeNode.target_mw)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tree Toolbar ── */}
+      <div className="tree-toolbar">
+        <div className="tree-toolbar-info">
+          <span className="tree-section-title">Répartition hiérarchique du délestage</span>
+          <span className="tree-section-sub">National → CRC → BCC → Départs HTA/HTB</span>
+        </div>
+        <button 
+          type="button" 
+          className="btn-toggle-all"
+          onClick={toggleAll}
+        >
+          {allExpanded ? '▲ Tout replier' : '▼ Tout déplier'}
+        </button>
       </div>
-      <div className="tree-body">
-        {nodes.map(node => renderNode(node, 0))}
+
+      {/* ── Hierarchical Allocation Table ── */}
+      <div className="allocation-tree">
+        <div className="tree-header">
+          <div className="cell-entity">Entité & Découpage</div>
+          <div className="cell-target">Cible (MW)</div>
+          <div className="cell-achieved">Réalisé (MW)</div>
+          <div className="cell-progress">Progression</div>
+          <div className="cell-shortfall">Écart (MW)</div>
+          <div className="cell-status">Statut</div>
+        </div>
+        <div className="tree-body">
+          {activeNode ? renderNode(activeNode, 0) : nodes.map((n) => renderNode(n, 0))}
+        </div>
       </div>
     </div>
   );
