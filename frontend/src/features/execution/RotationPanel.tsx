@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getRotationProposals,
@@ -24,9 +24,11 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
     candidate: ReplacementCandidate;
   } | null>(null);
   const [justificationText, setJustificationText] = useState('');
+  const [autoNotification, setAutoNotification] = useState<string | null>(null);
+  const autoTriggeredRef = useRef<Set<number>>(new Set());
 
-  // 1-sec tick for live elapsed time rendering
-  const [, setTick] = useState(0);
+  // 1-sec tick for live elapsed time rendering & auto-rotation checks
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(timer);
@@ -54,10 +56,42 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
     },
   });
 
+  // Client-side automatic rotation trigger if operator takes no action after 45 minutes
+  useEffect(() => {
+    proposals.forEach((p) => {
+      const diffSec = Math.max(0, Math.floor((Date.now() - new Date(p.open_time).getTime()) / 1000));
+      const maxSec = (p.max_duration_minutes || 45) * 60;
+      if (diffSec >= maxSec && !autoTriggeredRef.current.has(p.outgoing_event_id)) {
+        const chosenFeederId =
+          selectedReplacements[p.outgoing_event_id] ?? p.recommended_replacement?.feeder_id;
+        if (chosenFeederId) {
+          autoTriggeredRef.current.add(p.outgoing_event_id);
+          setAutoNotification(
+            `🛡️ Rétablissement et bascule automatique exécutés : le départ "${p.outgoing_feeder_name}" (${p.outgoing_feeder_id}) a atteint 45 min sans rétablissement manuel. La coupure a été automatiquement basculée sur "${chosenFeederId}".`
+          );
+          rotationMutation.mutate({
+            outgoingEventId: p.outgoing_event_id,
+            replacementFeederId: chosenFeederId,
+            justification: `Bascule automatique de sécurité : seuil légal de ${p.max_duration_minutes || 45} min atteint sans rétablissement manuel.`,
+          });
+        }
+      }
+    });
+  }, [proposals, tick, selectedReplacements, rotationMutation]);
+
   const formatElapsed = (openTimeStr: string) => {
     const diffSec = Math.max(0, Math.floor((Date.now() - new Date(openTimeStr).getTime()) / 1000));
     const mins = Math.floor(diffSec / 60);
     const secs = diffSec % 60;
+    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+  };
+
+  const formatRemaining = (openTimeStr: string, maxMins: number = 45) => {
+    const diffSec = Math.max(0, Math.floor((Date.now() - new Date(openTimeStr).getTime()) / 1000));
+    const totalSec = maxMins * 60;
+    const remSec = Math.max(0, totalSec - diffSec);
+    const mins = Math.floor(remSec / 60);
+    const secs = remSec % 60;
     return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
   };
 
@@ -109,6 +143,31 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
 
   return (
     <div className="rotation-panel-container">
+      {/* Auto-rotation notification toast/banner */}
+      {autoNotification && (
+        <div className="auto-rotation-notification">
+          <div className="auto-notif-content">
+            <span className="notif-icon">🛡️</span>
+            <span>{autoNotification}</span>
+          </div>
+          <button className="btn-close-notif" onClick={() => setAutoNotification(null)}>✕</button>
+        </div>
+      )}
+
+      {/* Safety Auto-rotation active banner */}
+      <div className="auto-rotation-guard-banner">
+        <span className="guard-icon">🛡️</span>
+        <div className="guard-text">
+          <div className="guard-title">
+            Rétablissement &amp; Tournage Automatique de Sécurité : <span className="guard-status-active">ACTIF</span>
+          </div>
+          <div className="guard-desc">
+            • <strong>36 min (Orange) :</strong> Pré-alerte d'équité — l'opérateur peut ajuster ou anticiper la rotation manuellement.<br />
+            • <strong>45 min (Seuil réglementaire) :</strong> Si aucune action manuelle n'est réalisée, le système rétablit automatiquement le départ et bascule la coupure sur le départ équivalent recommandé.
+          </div>
+        </div>
+      </div>
+
       <div className="rotation-alert-header">
         <div className="rotation-title-area">
           <span className="alert-badge-pulse">⚠️ ALERTE ROTATION (UC6)</span>
@@ -124,6 +183,10 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
 
       <div className="rotation-cards-list">
         {proposals.map((p) => {
+          const diffSec = Math.max(0, Math.floor((Date.now() - new Date(p.open_time).getTime()) / 1000));
+          const maxSec = (p.max_duration_minutes || 45) * 60;
+          const isOverdue = diffSec >= maxSec;
+
           const chosenId =
             selectedReplacements[p.outgoing_event_id] ?? p.recommended_replacement?.feeder_id;
           const allOptions: ReplacementCandidate[] = [];
@@ -156,6 +219,14 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
                     <span>Puissance délestée :</span>
                     <strong>{p.outgoing_mw.toFixed(1)} MW</strong>
                   </div>
+                </div>
+
+                <div className={`auto-countdown-badge ${isOverdue ? 'critical' : 'warning'}`}>
+                  {isOverdue ? (
+                    <span>⚡ <strong>45 min atteintes :</strong> Rétablissement automatique déclenché...</span>
+                  ) : (
+                    <span>⏳ Bascule auto dans : <strong>{formatRemaining(p.open_time, p.max_duration_minutes)}</strong> (si non acquitté)</span>
+                  )}
                 </div>
               </div>
 

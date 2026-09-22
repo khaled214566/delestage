@@ -31,6 +31,11 @@ export default function LoginPage() {
     } catch (err: any) {
       if (err?.response?.status === 401) {
         setError("Nom d'utilisateur ou mot de passe incorrect");
+      } else if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        setError(typeof detail === 'string' ? detail : JSON.stringify(detail));
+      } else if (err?.response?.status >= 500) {
+        setError(`Erreur interne du serveur (${err.response.status}).`);
       } else {
         setError("Erreur de connexion au serveur backend (vérifiez le port 8000).");
       }

@@ -23,6 +23,8 @@ from typing import Deque, List, Optional
 from pydantic import BaseModel
 
 from app.core.websocket import ws_manager
+from app.core.database import AsyncSessionLocal
+from app.services.rotation import check_and_execute_auto_rotations
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,7 @@ class LiveGridTelemetryEngine:
         self.history: Deque[LiveTelemetryPoint] = deque(maxlen=max_history)
         self.is_running = False
         self._task: Optional[asyncio.Task] = None
+        self._tick_counter: int = 0
 
         # Scenario mode: "AUTO" (cycles 0 -> 800 MW), "PEAK" (~800 MW), "BALANCED" (0 MW), "MODERATE" (~300 MW)
         self.scenario_mode: str = "AUTO"
@@ -214,7 +217,18 @@ class LiveGridTelemetryEngine:
                 })
             except Exception as e:
                 logger.warning(f"Error in LiveGridTelemetryEngine tick: {e}")
+
+            # Check for automatic rotations every 5 seconds (5 ticks)
+            self._tick_counter += 1
+            if self._tick_counter % 5 == 0:
+                try:
+                    async with AsyncSessionLocal() as session:
+                        await check_and_execute_auto_rotations(session)
+                except Exception as ex:
+                    logger.debug(f"Auto-rotation background check error: {ex}")
+
             await asyncio.sleep(1.0)
+
 
 
 # Global singleton engine instance
