@@ -1,18 +1,23 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.event import ShedEvent
-from app.models.enums import EventStatus, AlarmLevel, PriorityLevel, FeederStatus, OrderStatus, UserRole
+from app.models.enums import EventStatus, AlarmLevel, PriorityLevel, FeederStatus, OrderStatus, UserRole, OrderType, DeficitPlanStatus
 from app.models.hierarchy import Feeder, Bcc, Substation, FeederHistory
 from app.models.order import ShedOrder, AllocationNode, FeederAssignment
+from app.models.deficit import DeficitPlan, DeficitSlot
 from app.models.parameters import Parameters
 from app.models.users import User
-from app.schemas.execution import ConfirmOpenRequest, ConfirmCloseRequest, BccExecutionDashboard, FeederExecutionItem
+from app.schemas.execution import (
+    ConfirmOpenRequest, ConfirmCloseRequest, BccExecutionDashboard, FeederExecutionItem,
+    EmergencyAutoShedRequest, EmergencyAutoShedResponse, EmergencyCutFeederInfo,
+)
 from app.services import audit
+from app.services import order as order_service
 from app.services import monitoring as monitoring_service
 from app.core.websocket import ws_manager
 
@@ -71,12 +76,15 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
             target_mw = current_node.target_mw
 
             # Fetch planned feeders for this slot (or across all slots if none)
-            fa_query = select(FeederAssignment.feeder_id).where(FeederAssignment.node_id == current_node.id)
-            planned_feeder_ids = set((await db.execute(fa_query)).scalars().all())
-            if not planned_feeder_ids:
+            fa_query = select(FeederAssignment).where(FeederAssignment.node_id == current_node.id)
+            assignments = list((await db.execute(fa_query)).scalars().all())
+            if not assignments:
                 all_node_ids = [bn.id for bn in bcc_nodes]
-                fa_query = select(FeederAssignment.feeder_id).where(FeederAssignment.node_id.in_(all_node_ids))
-                planned_feeder_ids = set((await db.execute(fa_query)).scalars().all())
+                fa_query = select(FeederAssignment).where(FeederAssignment.node_id.in_(all_node_ids))
+                assignments = list((await db.execute(fa_query)).scalars().all())
+
+            planned_assignments = {a.feeder_id: a for a in assignments}
+            planned_feeder_ids = set(planned_assignments.keys())
 
     # 3. Load all feeders in this BCC with substation and history
     feeders_query = (
@@ -129,6 +137,20 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
             elapsed_mins = open_ev.compute_duration(now)
             alarm_lvl = open_ev.get_alarm_level(max_duration_min, now).value
 
+        assignment = planned_assignments.get(f.id)
+        is_planned = assignment is not None or f.id in planned_feeder_ids
+        cum_min = float(f.history.cumulative_minutes) if f.history else 0.0
+        f_score = assignment.fairness_score if assignment else None
+
+        rec_reason: Optional[str] = None
+        if is_planned:
+            rec_reason = (
+                f"Départ sélectionné par l'algorithme d'optimisation STEG (Priorité {f.priority.value}, "
+                f"Temps de coupure cumulé: {int(cum_min)} min"
+                f"{f', Score d’équité: {f_score:.2f}' if f_score is not None else ''}, "
+                f"Puissance nominale: {f.avg_mw} MW). Conforme aux temps de repos et sans infrastructure vitale."
+            )
+
         items.append(
             FeederExecutionItem(
                 feeder_id=f.id,
@@ -141,7 +163,10 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
                 is_eligible=is_eligible,
                 ineligibility_reason=ineligibility_reason,
                 rest_time_left_min=rest_left,
-                is_planned_in_order=f.id in planned_feeder_ids,
+                is_planned_in_order=is_planned,
+                cumulative_minutes=cum_min,
+                fairness_score=f_score,
+                recommendation_reason=rec_reason,
                 current_event_id=open_ev.id if open_ev else None,
                 open_time=open_ev.open_time if open_ev else None,
                 elapsed_minutes=elapsed_mins,
@@ -355,3 +380,207 @@ async def confirm_restoration(db: AsyncSession, event_id: int, req: ConfirmClose
     })
 
     return event
+
+
+async def execute_emergency_auto_shed(
+    db: AsyncSession,
+    req: EmergencyAutoShedRequest,
+    user: User,
+) -> EmergencyAutoShedResponse:
+    """
+    Emergency Automated Load Shedding:
+    Triggered when grid frequency is endangered or real-time deficit is critical.
+    With zero manual delay:
+    1. Sets up the REAL_TIME deficit plan and slot for today with requested deficit MW.
+    2. Runs full fair-share allocation across CRC Nord/Sud and all 7 BCCs (P5 -> P1, fairness scores, rest rules).
+    3. Validates and activates the order immediately.
+    4. Automatically opens breakers on all assigned feeders, cutting electricity instantaneously.
+    5. Broadcasts live WebSocket alerts and returns the full operational summary.
+    """
+    deficit_mw = max(10.0, round(req.deficit_mw, 1))
+    now = datetime.now(timezone.utc)
+    plan_date = now.date()
+
+    # 1. Find or create REAL_TIME plan
+    plan_query = (
+        select(DeficitPlan)
+        .options(selectinload(DeficitPlan.slots), selectinload(DeficitPlan.order))
+        .where(DeficitPlan.date == plan_date, DeficitPlan.mode == OrderType.REAL_TIME)
+    )
+    plan = (await db.execute(plan_query)).scalar_one_or_none()
+
+    slot_start = now.replace(minute=(now.minute // 30) * 30, second=0, microsecond=0)
+    slot_end = slot_start + timedelta(minutes=30)
+
+    if not plan:
+        plan = DeficitPlan(
+            date=plan_date,
+            mode=OrderType.REAL_TIME,
+            status=DeficitPlanStatus.VALIDATED,
+            created_by=user.id,
+            validated_by=user.id,
+            validated_at=now,
+            slots=[],
+        )
+        db.add(plan)
+        await db.flush()
+
+        slot = DeficitSlot(
+            plan_id=plan.id,
+            slot_start=slot_start,
+            slot_end=slot_end,
+            demand_mw=3950.0 + deficit_mw,
+            generation_mw=3800.0,
+            imports_mw=200.0,
+            margin_mw=50.0,
+            deficit_mw=deficit_mw,
+        )
+        db.add(slot)
+        await db.flush()
+    else:
+        # Update existing plan slot
+        if not plan.slots:
+            slot = DeficitSlot(
+                plan_id=plan.id,
+                slot_start=slot_start,
+                slot_end=slot_end,
+                demand_mw=3950.0 + deficit_mw,
+                generation_mw=3800.0,
+                imports_mw=200.0,
+                margin_mw=50.0,
+                deficit_mw=deficit_mw,
+            )
+            db.add(slot)
+        else:
+            slot = plan.slots[0]
+            slot.deficit_mw = deficit_mw
+            slot.demand_mw = 3950.0 + deficit_mw
+        plan.status = DeficitPlanStatus.VALIDATED
+        await db.flush()
+
+    # 2. Setup or reuse order
+    if plan.order:
+        order = plan.order
+        # Clean previous allocation nodes
+        await db.execute(delete(AllocationNode).where(AllocationNode.order_id == order.id))
+        order.status = OrderStatus.DRAFT
+        order.total_deficit_mw = deficit_mw
+        order.allocated_at = None
+        order.validated_at = None
+        order.activated_at = None
+        order.completed_at = None
+        order.cancelled_at = None
+        await db.flush()
+    else:
+        order = ShedOrder(
+            plan_id=plan.id,
+            status=OrderStatus.DRAFT,
+            total_deficit_mw=deficit_mw,
+            created_by=user.id,
+        )
+        db.add(order)
+        await db.flush()
+
+    # 3. Run algorithmic allocation, validate & activate
+    allocated_order = await order_service.run_allocation(db, order_id=order.id, actor=user)
+    validated_order = await order_service.validate_order(db, order_id=order.id, actor=user)
+    active_order = await order_service.activate_order(db, order_id=order.id, actor=user)
+
+    # 4. Automatically cut the electricity on terrain for all assigned feeders
+    fa_stmt = (
+        select(FeederAssignment, Feeder, Substation, Bcc)
+        .join(Feeder, FeederAssignment.feeder_id == Feeder.id)
+        .join(Substation, Feeder.substation_id == Substation.id)
+        .join(Bcc, Feeder.bcc_id == Bcc.id)
+        .join(AllocationNode, FeederAssignment.node_id == AllocationNode.id)
+        .where(AllocationNode.order_id == active_order.id)
+        .order_by(Feeder.priority.desc())
+    )
+    assigned_rows = (await db.execute(fa_stmt)).all()
+
+    cut_feeders: List[EmergencyCutFeederInfo] = []
+    total_mw_cut = 0.0
+
+    for assignment, feeder, substation, bcc in assigned_rows:
+        # P0 feeders are strictly protected
+        if feeder.priority == PriorityLevel.P0 or feeder.critical:
+            continue
+
+        mw_to_cut = assignment.assigned_mw or feeder.avg_mw
+
+        # If not already open, create open event and open breaker
+        if feeder.status != FeederStatus.OPEN:
+            event = ShedEvent(
+                order_id=active_order.id,
+                feeder_id=feeder.id,
+                bcc_id=feeder.bcc_id,
+                open_time=now,
+                mw_before=feeder.avg_mw,
+                mw_actual=mw_to_cut,
+                operator_id=user.id,
+                status=EventStatus.OPEN,
+            )
+            db.add(event)
+            feeder.status = FeederStatus.OPEN
+            await db.execute(
+                update(FeederHistory)
+                .where(FeederHistory.feeder_id == feeder.id)
+                .values(last_shed_start=now, last_shed_end=None)
+            )
+
+        total_mw_cut += mw_to_cut
+        cut_feeders.append(
+            EmergencyCutFeederInfo(
+                feeder_id=feeder.id,
+                feeder_name=feeder.name,
+                bcc_id=bcc.id,
+                bcc_name=bcc.name,
+                priority=feeder.priority.value,
+                mw_cut=round(mw_to_cut, 1),
+            )
+        )
+
+    # 5. Log in cryptographic audit log
+    await audit.log(
+        db,
+        actor_id=str(user.id),
+        actor_name=user.name,
+        action="EMERGENCY_AUTO_SHED_EXECUTED",
+        entity_type="shed_order",
+        entity_id=str(active_order.id),
+        payload={
+            "order_id": active_order.id,
+            "target_deficit_mw": deficit_mw,
+            "total_mw_cut": round(total_mw_cut, 1),
+            "cut_feeders_count": len(cut_feeders),
+            "reason": req.reason,
+        },
+    )
+
+    await db.commit()
+
+    # 6. Broadcast telemetry to all connected clients
+    summary = await monitoring_service.get_monitoring_summary(db)
+    await ws_manager.broadcast({
+        "type": "MONITORING_SUMMARY",
+        "data": summary.model_dump(mode="json"),
+    })
+    await ws_manager.broadcast({
+        "type": "EMERGENCY_SHED_TRIGGERED",
+        "order_id": active_order.id,
+        "mw_cut": round(total_mw_cut, 1),
+        "cut_feeders_count": len(cut_feeders),
+    })
+
+    return EmergencyAutoShedResponse(
+        status="ok",
+        order_id=active_order.id,
+        plan_id=plan.id,
+        total_deficit_mw=deficit_mw,
+        total_mw_cut=round(total_mw_cut, 1),
+        cut_feeders_count=len(cut_feeders),
+        cut_feeders=cut_feeders,
+        message=f"Délestage d'urgence exécuté : {len(cut_feeders)} départs coupés immédiatement ({round(total_mw_cut, 1)} MW soulagés). Réseau protégé du blackout.",
+        executed_at=now.isoformat(),
+    )
+

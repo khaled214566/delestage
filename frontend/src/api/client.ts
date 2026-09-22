@@ -352,6 +352,9 @@ export interface FeederExecutionItem {
   ineligibility_reason: string | null;
   rest_time_left_min: number | null;
   is_planned_in_order: boolean;
+  cumulative_minutes?: number;
+  fairness_score?: number | null;
+  recommendation_reason?: string | null;
   current_event_id: number | null;
   open_time: string | null;
   elapsed_minutes: number | null;
@@ -389,6 +392,35 @@ export const confirmOpen = async (body: ConfirmOpenPayload): Promise<{ status: s
 
 export const confirmClose = async (eventId: number, closeTime?: string): Promise<{ status: string; event_id: number }> => {
   const { data } = await apiClient.post(`/execution/events/${eventId}/close`, { close_time: closeTime });
+  return data;
+};
+
+export interface EmergencyCutFeederInfo {
+  feeder_id: string;
+  feeder_name: string;
+  bcc_id: string;
+  bcc_name: string;
+  priority: string;
+  mw_cut: number;
+}
+
+export interface EmergencyAutoShedResponse {
+  status: string;
+  order_id: number;
+  plan_id: number;
+  total_deficit_mw: number;
+  total_mw_cut: number;
+  cut_feeders_count: number;
+  cut_feeders: EmergencyCutFeederInfo[];
+  message: string;
+  executed_at: string;
+}
+
+export const executeEmergencyAutoShed = async (deficitMw: number, reason?: string): Promise<EmergencyAutoShedResponse> => {
+  const { data } = await apiClient.post<EmergencyAutoShedResponse>('/execution/emergency-auto-shed', {
+    deficit_mw: deficitMw,
+    reason: reason || 'Délestage automatique d\'urgence suite à déficit critique temps réel',
+  });
   return data;
 };
 

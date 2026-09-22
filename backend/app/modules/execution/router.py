@@ -4,7 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.users import User
-from app.schemas.execution import ConfirmOpenRequest, ConfirmCloseRequest, BccExecutionDashboard
+from app.schemas.execution import (
+    ConfirmOpenRequest, ConfirmCloseRequest, BccExecutionDashboard,
+    EmergencyAutoShedRequest, EmergencyAutoShedResponse,
+)
 from app.services import execution as execution_service
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
@@ -56,3 +59,17 @@ async def confirm_restoration(
         "ens_mwh": ev.ens_mwh,
         "close_time": ev.close_time.isoformat() if ev.close_time else None,
     }
+
+
+@router.post("/emergency-auto-shed", response_model=EmergencyAutoShedResponse)
+async def emergency_auto_shed(
+    body: EmergencyAutoShedRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Emergency Automated Load Shedding:
+    Executes algorithmic fair-share allocation and instantaneous physical/virtual breaker cuts
+    with zero human delay to protect national grid frequency from blackout.
+    """
+    return await execution_service.execute_emergency_auto_shed(db, req=body, user=user)
