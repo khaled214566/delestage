@@ -5,6 +5,11 @@ Generates realistic stochastic micro-fluctuations (Ornstein-Uhlenbeck process)
 for National Demand, International Imports, Deficit and Grid Frequency.
 Maintains a 60-second in-memory ring buffer (zero database writes) and
 broadcasts ticks via WebSocket every second.
+
+Supports multi-scenario dynamic range:
+- Deficit peaks up to ~800 MW (Pic de charge / Tension forte)
+- Intermediate levels (~200 - 400 MW)
+- Down to 0.0 MW (Équilibre nominal avec réserves)
 """
 from __future__ import annotations
 
@@ -32,11 +37,13 @@ class LiveTelemetryPoint(BaseModel):
     deficit_mw: float
     frequency_hz: float
     delta_demand_mw: float
+    scenario: str
 
 
 class LiveTelemetrySnapshot(BaseModel):
     current: LiveTelemetryPoint
     history: List[LiveTelemetryPoint]
+    scenario_mode: str
 
 
 class LiveGridTelemetryEngine:
@@ -46,21 +53,29 @@ class LiveGridTelemetryEngine:
         self.is_running = False
         self._task: Optional[asyncio.Task] = None
 
-        # Base nominal operating points (based on national grid scale)
+        # Scenario mode: "AUTO" (cycles 0 -> 800 MW), "PEAK" (~800 MW), "BALANCED" (0 MW), "MODERATE" (~300 MW)
+        self.scenario_mode: str = "AUTO"
+
+        # Nominal operating points
         self.base_demand: float = 4350.0
         self.base_generation: float = 3800.0
         self.base_imports: float = 200.0
         self.base_margin: float = 50.0
 
-        # Current state
+        # Live state
         self.current_demand: float = 4350.0
         self.current_imports: float = 200.0
         self.current_generation: float = 3800.0
-        self.current_margin: float = 50.0
         self.prev_demand: float = 4350.0
 
         # Pre-seed history with 60 realistic points so frontend has a full sparkline immediately
         self._seed_initial_history()
+
+    def set_scenario(self, mode: str):
+        valid = {"AUTO", "PEAK", "BALANCED", "MODERATE"}
+        if mode.upper() in valid:
+            self.scenario_mode = mode.upper()
+            logger.info(f"LiveGridTelemetry scenario changed to: {self.scenario_mode}")
 
     def _seed_initial_history(self):
         now = datetime.now(timezone.utc)
@@ -70,42 +85,76 @@ class LiveGridTelemetryEngine:
             self.history.append(pt)
 
     def _generate_step(self, timestamp: datetime) -> LiveTelemetryPoint:
+        t = timestamp.timestamp()
+
+        # Determine target operating points based on scenario
+        if self.scenario_mode == "PEAK":
+            target_demand = 4820.0
+            target_gen = 3740.0
+            target_imports = 190.0
+            scenario_name = "Pic Critique (~800 MW)"
+        elif self.scenario_mode == "BALANCED":
+            target_demand = 3940.0
+            target_gen = 3850.0
+            target_imports = 215.0
+            scenario_name = "Équilibre (0 MW)"
+        elif self.scenario_mode == "MODERATE":
+            target_demand = 4350.0
+            target_gen = 3800.0
+            target_imports = 200.0
+            scenario_name = "Modéré (~300 MW)"
+        else:
+            # AUTO mode: Smooth sinusoidal wave over 180s cycle (peaks ~800 MW, troughs at 0 MW)
+            angle = (2 * math.pi * (t % 180.0)) / 180.0
+            target_demand = 4370.0 + 460.0 * math.sin(angle)
+            target_gen = 3800.0 - 50.0 * math.cos(angle)
+            target_imports = 200.0 - 15.0 * math.sin(angle)
+
+            # Descriptive scenario label based on current wave position
+            raw_est = target_demand - target_gen - target_imports - self.base_margin
+            if raw_est <= 20.0:
+                scenario_name = "Cycle Auto : Équilibre (0 MW)"
+            elif raw_est >= 600.0:
+                scenario_name = "Cycle Auto : Pic Fort (700-800 MW)"
+            else:
+                scenario_name = f"Cycle Auto : Modéré ({int(round(raw_est))} MW)"
+
         # Ornstein-Uhlenbeck mean-reverting stochastic process for demand
-        # dD = theta * (mu - D) * dt + sigma * dW
-        theta_d = 0.09
-        sigma_d = 4.2
-        drift_d = theta_d * (self.base_demand - self.current_demand)
+        theta_d = 0.14
+        sigma_d = 4.0
+        drift_d = theta_d * (target_demand - self.current_demand)
         shock_d = random.gauss(0.0, sigma_d)
-        new_demand = round(max(3500.0, min(5200.0, self.current_demand + drift_d + shock_d)), 1)
+        new_demand = round(max(3500.0, min(5300.0, self.current_demand + drift_d + shock_d)), 1)
         delta_d = round(new_demand - self.current_demand, 1)
         self.prev_demand = self.current_demand
         self.current_demand = new_demand
 
-        # Micro-fluctuations for international imports (interconnections)
-        theta_i = 0.08
-        sigma_i = 1.2
-        drift_i = theta_i * (self.base_imports - self.current_imports)
-        shock_i = random.gauss(0.0, sigma_i)
-        new_imports = round(max(150.0, min(260.0, self.current_imports + drift_i + shock_i)), 1)
-        self.current_imports = new_imports
-
         # Generation micro-variance
-        gen_shock = random.gauss(0.0, 0.4)
-        new_gen = round(self.base_generation + gen_shock, 1)
+        theta_g = 0.12
+        gen_shock = random.gauss(0.0, 0.6)
+        drift_g = theta_g * (target_gen - self.current_generation)
+        new_gen = round(max(3400.0, min(4200.0, self.current_generation + drift_g + gen_shock)), 1)
         self.current_generation = new_gen
 
-        # Compute real-time deficit: max(0, Demand - Generation - Imports - Margin)
+        # International imports micro-fluctuations
+        theta_i = 0.10
+        sigma_i = 1.0
+        drift_i = theta_i * (target_imports - self.current_imports)
+        shock_i = random.gauss(0.0, sigma_i)
+        new_imports = round(max(150.0, min(280.0, self.current_imports + drift_i + shock_i)), 1)
+        self.current_imports = new_imports
+
+        # Real-time deficit: max(0, Demand - Generation - Imports - Margin)
         deficit = round(max(0.0, self.current_demand - new_gen - new_imports - self.base_margin), 1)
 
-        # Grid frequency: tightly regulated primary control.
-        # Strict user constraint: frequency variations must NOT exceed ±0.010 Hz from 50.000 Hz.
-        # Under power imbalance: delta_power = (Gen + Imports) - Demand
+        # Primary frequency regulation: tightly bounded within ±0.010 Hz around 50.000 Hz
+        # delta_p = (Gen + Imports) - Demand
         delta_p = (new_gen + new_imports) - self.current_demand
-        # Scale to max ~0.006 Hz imbalance effect
-        f_imbalance = max(-0.006, min(0.006, (delta_p / 1000.0) * 0.015))
-        f_jitter = random.uniform(-0.003, 0.003)
+        # Imbalance effect clamped to [-0.007, +0.007]
+        f_imbalance = max(-0.007, min(0.007, (delta_p / 1000.0) * 0.012))
+        f_jitter = random.uniform(-0.002, 0.002)
         frequency = round(50.000 + f_imbalance + f_jitter, 3)
-        # Strict hard clamp: exactly [49.990 Hz, 50.010 Hz]
+        # Strict user constraint: strictly [49.990 Hz, 50.010 Hz]
         frequency = max(49.990, min(50.010, frequency))
 
         time_label = timestamp.strftime("%H:%M:%S")
@@ -120,6 +169,7 @@ class LiveGridTelemetryEngine:
             deficit_mw=deficit,
             frequency_hz=frequency,
             delta_demand_mw=delta_d,
+            scenario=scenario_name,
         )
 
     def tick(self) -> LiveTelemetryPoint:
@@ -133,6 +183,7 @@ class LiveGridTelemetryEngine:
         return LiveTelemetrySnapshot(
             current=current,
             history=list(self.history),
+            scenario_mode=self.scenario_mode,
         )
 
     async def start(self):
@@ -140,7 +191,7 @@ class LiveGridTelemetryEngine:
             return
         self.is_running = True
         self._task = asyncio.create_task(self._run_loop())
-        logger.info("LiveGridTelemetryEngine started (1 Hz tick cadence).")
+        logger.info("LiveGridTelemetryEngine started (1 Hz tick cadence, 0-800 MW dynamic range).")
 
     async def stop(self):
         self.is_running = False

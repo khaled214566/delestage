@@ -314,15 +314,22 @@ export interface LiveTelemetryPoint {
   deficit_mw: number;
   frequency_hz: number;
   delta_demand_mw: number;
+  scenario?: string;
 }
 
 export interface LiveTelemetrySnapshot {
   current: LiveTelemetryPoint;
   history: LiveTelemetryPoint[];
+  scenario_mode?: string;
 }
 
 export const getLiveTelemetry = async (): Promise<LiveTelemetrySnapshot> => {
   const { data } = await apiClient.get<LiveTelemetrySnapshot>('/monitoring/telemetry/live');
+  return data;
+};
+
+export const setTelemetryScenario = async (mode: string): Promise<{ status: string; scenario_mode: string }> => {
+  const { data } = await apiClient.post('/monitoring/telemetry/scenario', { mode });
   return data;
 };
 

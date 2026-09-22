@@ -44,19 +44,19 @@ input::placeholder, textarea::placeholder {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
+  min-height: 100vh;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  text-align: left;
 }
 
 body {
   margin: 0;
+  background-color: #f8fafc;
+  color: #1e293b;
 }
 
 h1,

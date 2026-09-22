@@ -33,6 +33,17 @@ async def get_live_telemetry():
     return telemetry_engine.get_snapshot()
 
 
+class ScenarioChangeRequest(BaseModel):
+    mode: str  # "AUTO", "PEAK", "BALANCED", "MODERATE"
+
+
+@router.post("/telemetry/scenario", response_model=dict)
+async def set_telemetry_scenario(body: ScenarioChangeRequest):
+    """Switch the live stochastic telemetry scenario (e.g. PEAK up to 800 MW, BALANCED 0 MW, AUTO)."""
+    telemetry_engine.set_scenario(body.mode)
+    return {"status": "ok", "scenario_mode": telemetry_engine.scenario_mode}
+
+
 @router.post("/simulate", response_model=dict)
 async def simulate_toggle(body: SimulateToggleRequest, db: AsyncSession = Depends(get_db)):
     """Dev simulation endpoint to trigger feeder open/close and broadcast real-time telemetry."""
