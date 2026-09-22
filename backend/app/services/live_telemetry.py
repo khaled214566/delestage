@@ -102,10 +102,10 @@ class LiveGridTelemetryEngine:
             target_imports = 215.0
             scenario_name = "Équilibre (0 MW)"
         elif self.scenario_mode == "MODERATE":
-            target_demand = 4350.0
+            target_demand = 4400.0
             target_gen = 3800.0
             target_imports = 200.0
-            scenario_name = "Modéré (~300 MW)"
+            scenario_name = "Déficit Temps Réel (~350 MW)"
         else:
             # AUTO mode: Smooth sinusoidal wave over 180s cycle (peaks ~800 MW, troughs at 0 MW)
             angle = (2 * math.pi * (t % 180.0)) / 180.0

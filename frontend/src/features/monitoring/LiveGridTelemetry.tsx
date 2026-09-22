@@ -144,6 +144,21 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
             🟢 0 MW (Équilibre)
           </button>
           <button
+            onClick={() => handleScenarioChange('MODERATE')}
+            className="btn-small"
+            style={{
+              padding: '2px 8px',
+              fontSize: '0.75rem',
+              background: activeScenario === 'MODERATE' ? '#f59e0b' : '#1e293b',
+              color: activeScenario === 'MODERATE' ? '#0f172a' : '#94a3b8',
+              border: '1px solid #334155',
+              borderRadius: '4px',
+              fontWeight: 600,
+            }}
+          >
+            🟡 ~350 MW (Déficit Réel)
+          </button>
+          <button
             onClick={() => handleScenarioChange('PEAK')}
             className="btn-small"
             style={{

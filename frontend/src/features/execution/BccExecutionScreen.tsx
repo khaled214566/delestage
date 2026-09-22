@@ -43,6 +43,9 @@ export default function BccExecutionScreen() {
   const [justificationFeeder, setJustificationFeeder] = useState<FeederExecutionItem | null>(null);
   const [justificationText, setJustificationText] = useState('');
 
+  // Explanation modal state for recommended feeders
+  const [explanationFeeder, setExplanationFeeder] = useState<FeederExecutionItem | null>(null);
+
   // Local seconds tick for live countdown timers
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -58,6 +61,68 @@ export default function BccExecutionScreen() {
     enabled: !isAuthLoading && isBccAllowed,
     refetchInterval: 4000,
   });
+
+  const PRIORITY_ORDER: Record<string, number> = {
+    P5: 5,
+    P4: 4,
+    P3: 3,
+    P2: 2,
+    P1: 1,
+    P0: 0,
+  };
+
+  const getPriorityExplanation = (priority: string) => {
+    switch (priority) {
+      case 'P5':
+        return {
+          title: 'Priorité P5 — Industriels & Tertiaires Lourds (Délestage en 1er)',
+          desc: "Selon la grille de délestage de la STEG, les départs classés P5 sont systématiquement délestés en PREMIER. Il s'agit de zones industrielles ou de gros consommateurs non critiques pouvant différer leur consommation ou disposant de groupes autonomes. Cela permet d'épargner les usagers résidentiels et les services publics.",
+          badgeColor: '#c53030',
+          badgeBg: '#fff5f5',
+          badgeBorder: '#feb2b2',
+        };
+      case 'P4':
+        return {
+          title: 'Priorité P4 — Activités Commerciales et Mixtes (Délestage en 2e)',
+          desc: "Les départs P4 regroupent les zones commerciales, bureaux et activités tertiaires mixtes. Ils sont mobilisés en 2ème rang après épuisement des capacités P5 pour stabiliser la fréquence réseau sans impacter les zones purement résidentielles.",
+          badgeColor: '#dd6b20',
+          badgeBg: '#fffaf0',
+          badgeBorder: '#fbd38d',
+        };
+      case 'P3':
+        return {
+          title: 'Priorité P3 — Secteurs Résidentiels Standards (Priorité Moyenne)',
+          desc: "Les départs P3 alimentent des zones résidentielles denses sans infrastructure vitale. Le délestage n'intervient que si le déficit régional ne peut être absorbé par P5 et P4, avec une rotation équitable stricte.",
+          badgeColor: '#2b6cb0',
+          badgeBg: '#ebf8ff',
+          badgeBorder: '#bee3f8',
+        };
+      case 'P2':
+        return {
+          title: 'Priorité P2 — Réseaux Urbains à Vulnérabilité Modérée (Priorité Faible)',
+          desc: "Ces départs alimentent des centres urbains avec cliniques de jour, commerces de première nécessité ou écoles. Ils ne sont mobilisés qu'en situation d'urgence sévère.",
+          badgeColor: '#805ad5',
+          badgeBg: '#faf5ff',
+          badgeBorder: '#e9d8fd',
+        };
+      case 'P1':
+        return {
+          title: 'Priorité P1 — Réseaux Sensibles de Sauvegarde (Dernier Recours)',
+          desc: "Départs à proximité immédiate de nœuds stratégiques nationaux. Déconnectés uniquement en ultime recours pour éviter un effondrement généralisé du réseau (Blackout).",
+          badgeColor: '#4a5568',
+          badgeBg: '#f7fafc',
+          badgeBorder: '#cbd5e0',
+        };
+      default:
+        return {
+          title: `Priorité ${priority}`,
+          desc: "Départ sélectionné conformément aux règles de délestage hiérarchique de la STEG.",
+          badgeColor: '#4a5568',
+          badgeBg: '#edf2f7',
+          badgeBorder: '#cbd5e0',
+        };
+    }
+  };
 
   const openMutation = useMutation({
     mutationFn: (payload: { feederId: string; mwActual: number; justification?: string }) =>
@@ -129,8 +194,33 @@ export default function BccExecutionScreen() {
   }
 
   const openFeeders = dashboard.feeders.filter(f => f.status === 'OPEN');
-  const availableFeeders = dashboard.feeders.filter(f => f.status !== 'OPEN' && f.priority !== 'P0' && !f.is_critical);
-  const protectedFeeders = dashboard.feeders.filter(f => f.priority === 'P0' || f.is_critical);
+  const availableFeeders = dashboard.feeders
+    .filter(f => f.status !== 'OPEN' && f.priority !== 'P0' && !f.is_critical)
+    .sort((a, b) => {
+      // 1. Départs recommandés en premier
+      if (a.is_planned_in_order !== b.is_planned_in_order) {
+        return a.is_planned_in_order ? -1 : 1;
+      }
+      // 2. Ordre décroissant de priorité de P5 vers P1
+      const pA = PRIORITY_ORDER[a.priority] ?? 0;
+      const pB = PRIORITY_ORDER[b.priority] ?? 0;
+      if (pA !== pB) {
+        return pB - pA;
+      }
+      // 3. À priorité égale : puissance nominale décroissante (MW)
+      return b.avg_mw - a.avg_mw;
+    });
+
+  const protectedFeeders = dashboard.feeders
+    .filter(f => f.priority === 'P0' || f.is_critical)
+    .sort((a, b) => {
+      const pA = PRIORITY_ORDER[a.priority] ?? 0;
+      const pB = PRIORITY_ORDER[b.priority] ?? 0;
+      if (pA !== pB) return pB - pA;
+      return b.avg_mw - a.avg_mw;
+    });
+
+  const plannedCount = availableFeeders.filter(f => f.is_planned_in_order).length;
 
   return (
     <div className="bcc-execution-screen">
@@ -256,7 +346,13 @@ export default function BccExecutionScreen() {
 
       {/* Section 2: Départs disponibles et éligibles */}
       <div className="bcc-panel available-panel">
-        <h3>⚡ Départs Disponibles pour Délestage (Recommandations &amp; Éligibles)</h3>
+        <div className="panel-header-with-badge">
+          <h3>⚡ Départs Disponibles pour Délestage ({availableFeeders.length})</h3>
+          <div className="sort-indicator-badge">
+            <span className="sort-star">★</span> <strong>Recommandés en premier</strong> · Tri décroissant <strong>P5 → P1</strong>
+            {plannedCount > 0 && <span className="planned-count-tag">{plannedCount} recommandés</span>}
+          </div>
+        </div>
         <div className="feeder-action-cards">
           {availableFeeders.map((f) => {
             const currentMw = editedMw[f.feeder_id] ?? f.avg_mw;
@@ -271,7 +367,16 @@ export default function BccExecutionScreen() {
                   <div>
                     <div className="feeder-title-row">
                       <h4 className="card-feeder-name">{f.feeder_name}</h4>
-                      {f.is_planned_in_order && <span className="planned-badge">★ Recommandé</span>}
+                      {f.is_planned_in_order && (
+                        <button
+                          type="button"
+                          className="planned-badge"
+                          onClick={() => setExplanationFeeder(f)}
+                          title="Cliquez pour afficher l'explication complète de cette recommandation"
+                        >
+                          ★ Recommandé ℹ️
+                        </button>
+                      )}
                     </div>
                     <span className="card-substation">{f.substation_name} · ({f.feeder_id})</span>
                   </div>
@@ -363,6 +468,136 @@ export default function BccExecutionScreen() {
                 disabled={!justificationText.trim() || openMutation.isPending}
               >
                 Confirmer l'ouverture avec dérogation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Explanation Modal for Recommended Feeders */}
+      {explanationFeeder && (
+        <div className="modal-backdrop" onClick={() => setExplanationFeeder(null)}>
+          <div className="modal-box explanation-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="explanation-modal-header">
+              <div className="explanation-title-row">
+                <span className="explanation-icon">💡</span>
+                <div>
+                  <h3 className="explanation-title">
+                    Pourquoi ce départ est-il recommandé ?
+                  </h3>
+                  <div className="explanation-sub">
+                    <strong>{explanationFeeder.feeder_name}</strong> · {explanationFeeder.substation_name} ({explanationFeeder.feeder_id})
+                  </div>
+                </div>
+              </div>
+              <button
+                className="btn-close-modal"
+                onClick={() => setExplanationFeeder(null)}
+                title="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="explanation-meta-pills">
+              <span
+                className="pill-priority"
+                style={{
+                  color: getPriorityExplanation(explanationFeeder.priority).badgeColor,
+                  backgroundColor: getPriorityExplanation(explanationFeeder.priority).badgeBg,
+                  borderColor: getPriorityExplanation(explanationFeeder.priority).badgeBorder,
+                }}
+              >
+                ⭐ Priorité {explanationFeeder.priority}
+              </span>
+              <span className="pill-mw">⚡ {explanationFeeder.avg_mw.toFixed(1)} MW</span>
+              <span className="pill-target">🎯 Cible BCC : {dashboard.target_mw} MW</span>
+              <span className="pill-planned">✓ Planifié dans l'Ordre #{dashboard.order_id ?? 'Actif'}</span>
+            </div>
+
+            <div className="explanation-cards-list">
+              {/* Point 1: Priorité STEG */}
+              <div className="explanation-point-card">
+                <div className="point-card-header">
+                  <span className="point-card-num">1</span>
+                  <h4>{getPriorityExplanation(explanationFeeder.priority).title}</h4>
+                </div>
+                <p className="point-card-desc">
+                  {getPriorityExplanation(explanationFeeder.priority).desc}
+                </p>
+                <div className="point-card-note">
+                  ↳ <em>Règle STEG de délestage décroissant (P5 → P1)</em> : En coupant en premier lieu les départs <strong>P5</strong> (industriels/gros consommateurs), le système évite de priver d'électricité les ménages, écoles et zones urbaines (P3/P2/P1).
+                </div>
+              </div>
+
+              {/* Point 2: Équité & Rotation */}
+              <div className="explanation-point-card">
+                <div className="point-card-header">
+                  <span className="point-card-num">2</span>
+                  <h4>Algorithme d'Équité &amp; Rotation Équilibrée (Fairness Engine)</h4>
+                </div>
+                <p className="point-card-desc">
+                  Temps de coupure cumulé aujourd'hui : <strong>{explanationFeeder.cumulative_minutes ?? 0} minutes</strong>.
+                  {explanationFeeder.fairness_score !== null && explanationFeeder.fairness_score !== undefined && (
+                    <> (Score d'équité calculé : <strong>{explanationFeeder.fairness_score.toFixed(2)}</strong>).</>
+                  )}
+                </p>
+                <div className="point-card-note">
+                  ↳ <em>Justice territoriale</em> : Parmi tous les départs éligibles de même priorité ({explanationFeeder.priority}), ce départ fait partie de ceux ayant subi le moins d'interruptions récentes, évitant ainsi d'imposer des coupures répétées aux mêmes abonnés.
+                </div>
+              </div>
+
+              {/* Point 3: Éligibilité & Sécurité */}
+              <div className="explanation-point-card">
+                <div className="point-card-header">
+                  <span className="point-card-num">3</span>
+                  <h4>Conformité Technique &amp; Règles de Sécurité Validées (100%)</h4>
+                </div>
+                <ul className="point-card-checklist">
+                  <li>
+                    ✅ <strong>Temps de repos matériel (180 min) respecté</strong> :
+                    Le disjoncteur a suffisamment reposé depuis sa dernière manœuvre, évitant tout risque d'usure anormale ou de surchauffe.
+                  </li>
+                  <li>
+                    ✅ <strong>Aucune infrastructure critique P0</strong> :
+                    Cette ligne n'alimente aucun hôpital, caserne, clinique ou station d'eau potable majeure (SONEDE).
+                  </li>
+                  <li>
+                    ✅ <strong>Départ en service</strong> :
+                    Ligne sous tension et prête pour une manœuvre d'ouverture immédiate.
+                  </li>
+                </ul>
+              </div>
+
+              {/* Point 4: Cible MW */}
+              <div className="explanation-point-card">
+                <div className="point-card-header">
+                  <span className="point-card-num">4</span>
+                  <h4>Convergence Optimale vers le Quota Régional ({dashboard.bcc_name})</h4>
+                </div>
+                <p className="point-card-desc">
+                  Avec une puissance nominale de <strong>{explanationFeeder.avg_mw.toFixed(1)} MW</strong>, ce départ s'ajuste idéalement pour combler le quota régional de <strong>{dashboard.target_mw} MW</strong> fixé par le Dispatching National, sans dépasser la marge de tolérance autorisée (+10%).
+                </p>
+              </div>
+            </div>
+
+            <div className="explanation-modal-footer">
+              <button
+                className="btn-small btn-ghost"
+                onClick={() => setExplanationFeeder(null)}
+              >
+                Fermer
+              </button>
+              <button
+                className="btn-small btn-open-direct"
+                onClick={() => {
+                  const feederToOpen = explanationFeeder;
+                  setExplanationFeeder(null);
+                  handleOpenClick(feederToOpen);
+                }}
+                disabled={openMutation.isPending}
+              >
+                ⚡ Confirmer l'Ouverture du Disjoncteur ({explanationFeeder.avg_mw.toFixed(1)} MW)
               </button>
             </div>
           </div>

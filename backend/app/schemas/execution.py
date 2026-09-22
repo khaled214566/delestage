@@ -27,6 +27,9 @@ class FeederExecutionItem(BaseModel):
     ineligibility_reason: Optional[str] = None
     rest_time_left_min: Optional[float] = None
     is_planned_in_order: bool = False
+    cumulative_minutes: float = 0.0
+    fairness_score: Optional[float] = None
+    recommendation_reason: Optional[str] = None
     current_event_id: Optional[int] = None
     open_time: Optional[datetime] = None
     elapsed_minutes: Optional[float] = None
@@ -42,3 +45,29 @@ class BccExecutionDashboard(BaseModel):
     open_feeders_count: int
     feeders: List[FeederExecutionItem]
     order_id: Optional[int] = None
+
+
+class EmergencyAutoShedRequest(BaseModel):
+    deficit_mw: float
+    reason: Optional[str] = "Délestage automatique d'urgence suite à déficit critique temps réel"
+
+
+class EmergencyCutFeederInfo(BaseModel):
+    feeder_id: str
+    feeder_name: str
+    bcc_id: str
+    bcc_name: str
+    priority: str
+    mw_cut: float
+
+
+class EmergencyAutoShedResponse(BaseModel):
+    status: str
+    order_id: int
+    plan_id: int
+    total_deficit_mw: float
+    total_mw_cut: float
+    cut_feeders_count: int
+    cut_feeders: List[EmergencyCutFeederInfo]
+    message: str
+    executed_at: str

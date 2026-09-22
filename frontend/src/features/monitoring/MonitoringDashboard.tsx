@@ -5,6 +5,7 @@ import FeederStatusTable from './FeederStatusTable';
 import RegionalBreakdown from './RegionalBreakdown';
 import RotationPanel from '../execution/RotationPanel';
 import LiveGridTelemetry from './LiveGridTelemetry';
+import RealTimeDeficitWidget from './RealTimeDeficitWidget';
 
 export default function MonitoringDashboard() {
   const queryClient = useQueryClient();
@@ -119,6 +120,9 @@ export default function MonitoringDashboard() {
 
       {/* High-frequency 1 Hz Live Grid Telemetry Strip */}
       <LiveGridTelemetry latestTick={latestTick} />
+
+      {/* Real-Time Deficit Calculation Engine & Case Simulator */}
+      <RealTimeDeficitWidget latestTick={latestTick} />
 
       {/* KPI Cards Row */}
       <div className="kpi-grid">
