@@ -3,16 +3,14 @@ M9 Administration service — Parameters, Users, Audit.
 """
 from __future__ import annotations
 
-from passlib.context import CryptContext
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import get_password_hash
 from app.models.audit import AuditLog
 from app.models.parameters import Parameters
 from app.models.users import User
 from app.schemas.admin import ParametersPatch, UserCreate
-
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ─── Parameters ────────────────────────────────────────────────────────────────
 
@@ -84,7 +82,7 @@ async def create_user(
     user = User(
         username=data.username,
         name=data.name,
-        hashed_password=_pwd.hash(data.password),
+        hashed_password=get_password_hash(data.password),
         role=UserRole(data.role),
         scope_type=data.scope_type,
         scope_id=data.scope_id,

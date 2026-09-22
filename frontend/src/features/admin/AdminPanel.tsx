@@ -144,7 +144,21 @@ function ParametersTab() {
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 
 const ROLES = ['DISPATCHER', 'BCC_OPERATOR', 'CRC_OPERATOR', 'ADMIN'];
-const SCOPE_TYPES = ['national', 'bcc', 'crc'];
+
+const CRC_OPTIONS = [
+  { id: 'CRC_N', name: 'CRC Nord (Tunis, Nabeul, Sousse, Bizerte)' },
+  { id: 'CRC_S', name: 'CRC Sud (Sfax, Gabès, Gafsa)' },
+];
+
+const BCC_OPTIONS = [
+  { id: 'BCC1', name: 'BCC1 — Tunis (Nord)' },
+  { id: 'BCC2', name: 'BCC2 — Nabeul (Nord)' },
+  { id: 'BCC3', name: 'BCC3 — Sousse (Nord)' },
+  { id: 'BCC4', name: 'BCC4 — Bizerte (Nord)' },
+  { id: 'BCC5', name: 'BCC5 — Sfax (Sud)' },
+  { id: 'BCC6', name: 'BCC6 — Gabès (Sud)' },
+  { id: 'BCC7', name: 'BCC7 — Gafsa (Sud)' },
+];
 
 function UsersTab() {
   const { user: currentUser } = useAuth();
@@ -152,9 +166,39 @@ function UsersTab() {
 
   const [users, setUsers] = useState<UserData[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState<UserCreatePayload>({ username: '', name: '', password: '', role: 'BCC_OPERATOR', scope_type: 'bcc', scope_id: null });
+  const [form, setForm] = useState<UserCreatePayload>({
+    username: '',
+    name: '',
+    password: '',
+    role: 'BCC_OPERATOR',
+    scope_type: 'bcc',
+    scope_id: 'BCC1',
+  });
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState('');
+
+  const handleRoleChange = (newRole: string) => {
+    let newScopeType = 'national';
+    let newScopeId: string | null = null;
+
+    if (newRole === 'BCC_OPERATOR') {
+      newScopeType = 'bcc';
+      newScopeId = 'BCC1';
+    } else if (newRole === 'CRC_OPERATOR') {
+      newScopeType = 'crc';
+      newScopeId = 'CRC_N';
+    } else {
+      newScopeType = 'national';
+      newScopeId = null;
+    }
+
+    setForm((f) => ({
+      ...f,
+      role: newRole,
+      scope_type: newScopeType,
+      scope_id: newScopeId,
+    }));
+  };
 
   const load = useCallback(async () => {
     try {
@@ -184,7 +228,14 @@ function UsersTab() {
       const user = await createUser(form);
       setUsers(us => [...us, user]);
       setShowCreate(false);
-      setForm({ username: '', name: '', password: '', role: 'BCC_OPERATOR', scope_type: 'bcc', scope_id: null });
+      setForm({
+        username: '',
+        name: '',
+        password: '',
+        role: 'BCC_OPERATOR',
+        scope_type: 'bcc',
+        scope_id: 'BCC1',
+      });
       setMsg(`✅ Utilisateur "${user.username}" créé.`);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -237,22 +288,51 @@ function UsersTab() {
             </div>
             <div className="form-field">
               <label>Rôle</label>
-              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
+              <select value={form.role} onChange={e => handleRoleChange(e.target.value)}>
                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div className="form-field">
-              <label>Type de périmètre</label>
-              <select value={form.scope_type} onChange={e => setForm(f => ({ ...f, scope_type: e.target.value, scope_id: null }))}>
-                {SCOPE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <label>Type de périmètre (automatique)</label>
+              <input
+                type="text"
+                readOnly
+                disabled
+                value={
+                  form.scope_type === 'national'
+                    ? '🌐 National (Automatique)'
+                    : form.scope_type === 'crc'
+                    ? '🗺️ CRC Régional (Automatique)'
+                    : '⚡ BCC Local (Automatique)'
+                }
+                style={{ background: '#f8fafc', color: '#4a5568', cursor: 'not-allowed', fontWeight: 500 }}
+              />
             </div>
             <div className="form-field">
-              <label>ID périmètre (ex: BCC1, CRC_N)</label>
-              <input placeholder={form.scope_type === 'national' ? 'N/A' : 'ex: BCC1'}
-                disabled={form.scope_type === 'national'}
-                value={form.scope_id ?? ''}
-                onChange={e => setForm(f => ({ ...f, scope_id: e.target.value || null }))} />
+              <label>Affectation du périmètre</label>
+              {form.scope_type === 'national' ? (
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  value="National (Accès à tous les centres)"
+                  style={{ background: '#f8fafc', color: '#718096', cursor: 'not-allowed' }}
+                />
+              ) : form.scope_type === 'crc' ? (
+                <select
+                  value={form.scope_id ?? 'CRC_N'}
+                  onChange={e => setForm(f => ({ ...f, scope_id: e.target.value }))}
+                >
+                  {CRC_OPTIONS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              ) : (
+                <select
+                  value={form.scope_id ?? 'BCC1'}
+                  onChange={e => setForm(f => ({ ...f, scope_id: e.target.value }))}
+                >
+                  {BCC_OPTIONS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              )}
             </div>
           </div>
           <div className="admin-actions">

@@ -2546,6 +2546,123 @@ header p {
   gap: 1rem;
 }
 
+/* Auto-rotation safety guard banner */
+.auto-rotation-guard-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-left: 5px solid #38a169;
+  border-radius: 8px;
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.auto-rotation-guard-banner .guard-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  margin-top: 0.1rem;
+}
+
+.auto-rotation-guard-banner .guard-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #22543d;
+}
+
+.auto-rotation-guard-banner .guard-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 0.25rem;
+  color: #1c4532;
+}
+
+.guard-status-active {
+  display: inline-block;
+  background: #276749;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  margin-left: 0.35rem;
+}
+
+.auto-rotation-guard-banner .guard-desc {
+  color: #2f855a;
+}
+
+/* Auto-rotation execution notification banner */
+.auto-rotation-notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e6fffa;
+  border: 1px solid #81e6d9;
+  border-left: 5px solid #319795;
+  border-radius: 8px;
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.25rem;
+  color: #234e52;
+  font-size: 0.88rem;
+  animation: slide-in-top 0.3s ease;
+}
+
+.auto-notif-content {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 500;
+}
+
+.btn-close-notif {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: #4a5568;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  line-height: 1;
+}
+
+.btn-close-notif:hover {
+  color: #1a202c;
+}
+
+/* Countdown badge on card */
+.auto-countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  margin-top: 0.4rem;
+  font-weight: 500;
+}
+
+.auto-countdown-badge.warning {
+  background: #fffaf0;
+  border: 1px solid #feebc8;
+  color: #c05621;
+}
+
+.auto-countdown-badge.critical {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  color: #c53030;
+  font-weight: 600;
+  animation: pulse-danger 1.5s infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+
 .rotation-card {
   display: grid;
   grid-template-columns: 1.2fr auto 1.2fr auto;

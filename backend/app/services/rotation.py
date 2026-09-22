@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
@@ -5,6 +6,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.models.event import ShedEvent
 from app.models.enums import EventStatus, AlarmLevel, PriorityLevel, FeederStatus, UserRole
@@ -311,3 +314,57 @@ async def execute_rotation(
         rotations_count=rotations_total,
         message=f"Rotation executed: {outgoing_feeder.id} restored ({duration_min} min, {ens_mwh} MWh), {replacement_feeder.id} opened ({replacement_mw} MW).",
     )
+
+
+async def check_and_execute_auto_rotations(db: AsyncSession) -> list[ExecuteRotationResponse]:
+    """
+    Scans for any OPEN shed event exceeding max_duration_min (45 min)
+    and automatically executes a rotation to restore the outgoing feeder
+    and shed the recommended replacement feeder.
+    """
+    now = datetime.now(timezone.utc)
+    params = await db.get(Parameters, 1)
+    max_duration_min = float(params.max_duration_min) if params else 45.0
+
+    ev_query = (
+        select(ShedEvent)
+        .options(
+            selectinload(ShedEvent.feeder).selectinload(Feeder.substation),
+            selectinload(ShedEvent.bcc),
+        )
+        .where(ShedEvent.status == EventStatus.OPEN)
+    )
+    open_events = list((await db.execute(ev_query)).scalars().all())
+    executed: list[ExecuteRotationResponse] = []
+
+    # System administrative user for auto-rotations
+    system_user = User(
+        id=1,
+        username="system_auto_rotation",
+        name="Système Automatique (Délai 45 min)",
+        role=UserRole.ADMIN,
+    )
+
+    for ev in open_events:
+        elapsed = ev.compute_duration(now)
+        if elapsed >= max_duration_min:
+            proposals = await get_active_rotation_proposals(db, bcc_id=ev.bcc_id)
+            prop = next((p for p in proposals if p.outgoing_event_id == ev.id), None)
+            if prop and prop.recommended_replacement:
+                req = ExecuteRotationRequest(
+                    outgoing_event_id=ev.id,
+                    replacement_feeder_id=prop.recommended_replacement.feeder_id,
+                    justification=f"Bascule automatique de sécurité : seuil de {max_duration_min:.0f} min atteint sans rétablissement manuel.",
+                )
+                try:
+                    res = await execute_rotation(db, req, system_user)
+                    executed.append(res)
+                    logger.info(
+                        f"AUTO-ROTATION EXECUTED: Outgoing feeder {ev.feeder_id} restored, "
+                        f"replacement {prop.recommended_replacement.feeder_id} opened."
+                    )
+                except Exception as ex:
+                    logger.error(f"Auto-rotation failed for event #{ev.id}: {ex}")
+
+    return executed
+
