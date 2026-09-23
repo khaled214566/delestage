@@ -28,7 +28,12 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 
   scriptLoadingPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
+    // No `loading=async`: that switches Google's loader to the newer dynamic
+    // library pattern, where google.maps.Map isn't guaranteed to exist yet when
+    // this script's onload fires (you'd need google.maps.importLibrary() first).
+    // We want the classic synchronous loader so google.maps.* is fully populated
+    // by the time onload runs, matching the plain `new google.maps.Map(...)` below.
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('Impossible de charger Google Maps.'));
@@ -102,7 +107,10 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
         infoWindowRef.current = new google.maps.InfoWindow();
         setStatus('ready');
       })
-      .catch(() => !cancelled && setStatus('error'));
+      .catch((err) => {
+        console.error('CitizenMap: failed to load/init Google Maps.', err);
+        if (!cancelled) setStatus('error');
+      });
     return () => { cancelled = true; };
   }, []);
 
