@@ -2295,43 +2295,136 @@ header p {
   margin-bottom: 0.75rem;
 }
 
+.action-card-header.available-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.card-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 28px;
+  width: 100%;
+}
+
+.card-top-placeholder {
+  visibility: hidden;
+  height: 24px;
+}
+
+.card-identity-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .card-feeder-name {
   margin: 0;
-  font-size: 1rem;
-  color: #2d3748;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+  line-height: 1.3;
 }
 
 .card-substation {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: #718096;
 }
 
-.feeder-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .planned-badge {
-  background: #6b46c1;
-  color: white;
-  font-size: 0.72rem;
+  background: linear-gradient(135deg, #6b46c1 0%, #553c9a 100%);
+  color: #ffffff;
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid #553c9a;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  transition: all 0.15s ease-in-out;
-  box-shadow: 0 1px 3px rgba(107, 70, 193, 0.2);
+  gap: 0.35rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(107, 70, 193, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
+  user-select: none;
+  line-height: 1.2;
 }
 
 .planned-badge:hover {
-  background: #553c9a;
+  background: linear-gradient(135deg, #553c9a 0%, #44337a 100%);
   transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(107, 70, 193, 0.35);
+  box-shadow: 0 4px 10px rgba(107, 70, 193, 0.38);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.planned-badge:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(107, 70, 193, 0.2);
+}
+
+.planned-badge .badge-icon-star {
+  color: #f6e05e;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.planned-badge .badge-text {
+  letter-spacing: 0.01em;
+}
+
+.planned-badge .badge-icon-info {
+  font-size: 0.72rem;
+  opacity: 0.9;
+  line-height: 1;
+  margin-left: 0.1rem;
+}
+
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  border: 1px solid #cbd5e0;
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+.priority-pill.priority-p5 {
+  background: #fff5f5;
+  color: #c53030;
+  border-color: #feb2b2;
+}
+
+.priority-pill.priority-p4 {
+  background: #fffaf0;
+  color: #dd6b20;
+  border-color: #fbd38d;
+}
+
+.priority-pill.priority-p3 {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border-color: #bee3f8;
+}
+
+.priority-pill.priority-p2 {
+  background: #faf5ff;
+  color: #805ad5;
+  border-color: #e9d8fd;
+}
+
+.priority-pill.priority-p1 {
+  background: #f7fafc;
+  color: #4a5568;
+  border-color: #cbd5e0;
 }
 
 .card-timer {
