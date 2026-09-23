@@ -1,8 +1,0 @@
-docker compose up --build
-
-# Apply migrations inside the API container:
-docker compose exec api alembic upgrade head
-
-# Host alternative (requires backend dependencies installed first):
-# python -m pip install -e "backend[dev]"
-# python -m alembic -c backend\alembic.ini upgrade head
