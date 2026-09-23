@@ -61,6 +61,18 @@ async def confirm_restoration(
     }
 
 
+@router.post("/feeders/{feeder_id}/restore", response_model=dict)
+async def restore_feeder_by_id(
+    feeder_id: str,
+    body: ConfirmCloseRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Directly restore a feeder by feeder ID."""
+    return await execution_service.restore_feeder_by_id(db, feeder_id=feeder_id, req=body, user=user)
+
+
+
 @router.post("/emergency-auto-shed", response_model=EmergencyAutoShedResponse)
 async def emergency_auto_shed(
     body: EmergencyAutoShedRequest,

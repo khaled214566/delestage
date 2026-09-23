@@ -5,6 +5,7 @@ import {
   getBccDashboard,
   confirmOpen,
   confirmClose,
+  restoreFeederByFeederId,
   type BccExecutionDashboard,
   type FeederExecutionItem,
 } from '../../api/client';
@@ -153,6 +154,27 @@ export default function BccExecutionScreen() {
       alert('❌ Échec du rétablissement : ' + (e.response?.data?.detail ?? 'Erreur inconnue'));
     },
   });
+
+  const restoreFeederMutation = useMutation({
+    mutationFn: (feederId: string) => restoreFeederByFeederId(feederId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bccDashboard', selectedBcc] });
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert('❌ Échec du rétablissement : ' + (e.response?.data?.detail ?? 'Erreur inconnue'));
+    },
+  });
+
+  const isRestoring = closeMutation.isPending || restoreFeederMutation.isPending;
+
+  const handleRestoreClick = (feeder: FeederExecutionItem) => {
+    if (feeder.current_event_id) {
+      closeMutation.mutate(feeder.current_event_id);
+    } else {
+      restoreFeederMutation.mutate(feeder.feeder_id);
+    }
+  };
 
   const handleOpenClick = (feeder: FeederExecutionItem) => {
     const mw = editedMw[feeder.feeder_id] ?? feeder.avg_mw;
@@ -325,17 +347,17 @@ export default function BccExecutionScreen() {
                   </div>
                   <div className="card-metric">
                     <span>Priorité :</span>
-                    <span className="priority-pill">{f.priority}</span>
+                    <span className={`priority-pill priority-${f.priority.toLowerCase()}`}>{f.priority}</span>
                   </div>
                 </div>
 
                 <div className="action-card-footer">
                   <button
                     className="btn-large btn-restore"
-                    onClick={() => f.current_event_id && closeMutation.mutate(f.current_event_id)}
-                    disabled={closeMutation.isPending}
+                    onClick={() => handleRestoreClick(f)}
+                    disabled={isRestoring}
                   >
-                    🔌 Confirmer le Rétablissement
+                    {isRestoring ? '⏳ Rétablissement...' : '🔌 Confirmer le Rétablissement'}
                   </button>
                 </div>
               </div>
@@ -363,24 +385,30 @@ export default function BccExecutionScreen() {
                 key={f.feeder_id}
                 className={`action-card available-card ${f.is_planned_in_order ? 'planned-highlight' : ''}`}
               >
-                <div className="action-card-header">
-                  <div>
-                    <div className="feeder-title-row">
-                      <h4 className="card-feeder-name">{f.feeder_name}</h4>
-                      {f.is_planned_in_order && (
-                        <button
-                          type="button"
-                          className="planned-badge"
-                          onClick={() => setExplanationFeeder(f)}
-                          title="Cliquez pour afficher l'explication complète de cette recommandation"
-                        >
-                          ★ Recommandé ℹ️
-                        </button>
-                      )}
-                    </div>
+                <div className="action-card-header available-header">
+                  <div className="card-top-bar">
+                    {f.is_planned_in_order ? (
+                      <button
+                        type="button"
+                        className="planned-badge"
+                        onClick={() => setExplanationFeeder(f)}
+                        title="Cliquez pour afficher l'explication complète de cette recommandation"
+                      >
+                        <span className="badge-icon-star">★</span>
+                        <span className="badge-text">Recommandé</span>
+                        <span className="badge-icon-info">ℹ️</span>
+                      </button>
+                    ) : (
+                      <div className="card-top-placeholder" />
+                    )}
+                    <span className={`priority-pill priority-${f.priority.toLowerCase()}`}>
+                      {f.priority}
+                    </span>
+                  </div>
+                  <div className="card-identity-block">
+                    <h4 className="card-feeder-name">{f.feeder_name}</h4>
                     <span className="card-substation">{f.substation_name} · ({f.feeder_id})</span>
                   </div>
-                  <span className="priority-pill">{f.priority}</span>
                 </div>
 
                 <div className="action-card-body">

@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.event import ShedEvent
-from app.models.enums import EventStatus, AlarmLevel, OrderStatus, AllocationLevel
-from app.models.hierarchy import Feeder, Bcc, Crc
+from app.models.enums import EventStatus, AlarmLevel, OrderStatus, AllocationLevel, FeederStatus
+from app.models.hierarchy import Feeder, Bcc, Crc, FeederHistory
 from app.models.order import ShedOrder, AllocationNode
 from app.models.parameters import Parameters
 from app.schemas.monitoring import MonitoringSummary, RegionalSummary, ShedEventOut
@@ -206,17 +206,48 @@ async def simulate_event_toggle(
             operator_id=operator_id,
         )
         db.add(new_event)
+        feeder.status = FeederStatus.OPEN
+        history = (await db.execute(select(FeederHistory).where(FeederHistory.feeder_id == feeder.id))).scalar_one_or_none()
+        if history:
+            history.last_shed_start = now
+            history.last_shed_end = None
         await db.commit()
         await db.refresh(new_event)
         target_ev = new_event
     else:
         if not existing_event:
+            # Self-healing: if feeder was left with OPEN status without an active event, restore it
+            if feeder.status == FeederStatus.OPEN:
+                feeder.status = FeederStatus.CLOSED
+                history = (await db.execute(select(FeederHistory).where(FeederHistory.feeder_id == feeder.id))).scalar_one_or_none()
+                if history and not history.last_shed_end:
+                    history.last_shed_end = now
+                await db.commit()
+                last_closed_ev = (await db.execute(
+                    select(ShedEvent)
+                    .where(ShedEvent.feeder_id == feeder_id)
+                    .order_by(ShedEvent.id.desc())
+                    .limit(1)
+                )).scalar_one_or_none()
+                if last_closed_ev:
+                    summary = await get_monitoring_summary(db)
+                    await ws_manager.broadcast({
+                        "type": "MONITORING_SUMMARY",
+                        "data": summary.model_dump(mode="json"),
+                    })
+                    return last_closed_ev
             raise ValueError(f"Feeder '{feeder_id}' is not currently open")
         existing_event.close_time = now
         duration = (now - existing_event.open_time).total_seconds() / 60.0
         existing_event.duration_min = round(duration, 1)
         existing_event.ens_mwh = round(existing_event.mw_actual * duration / 60.0, 3)
         existing_event.status = EventStatus.CLOSED
+        feeder.status = FeederStatus.CLOSED
+        history = (await db.execute(select(FeederHistory).where(FeederHistory.feeder_id == feeder.id))).scalar_one_or_none()
+        if history:
+            history.cumulative_minutes += int(round(duration))
+            history.rotations += 1
+            history.last_shed_end = now
         await db.commit()
         await db.refresh(existing_event)
         target_ev = existing_event

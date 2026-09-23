@@ -395,6 +395,11 @@ export const confirmClose = async (eventId: number, closeTime?: string): Promise
   return data;
 };
 
+export const restoreFeederByFeederId = async (feederId: string, closeTime?: string): Promise<{ status: string; feeder_id: string }> => {
+  const { data } = await apiClient.post(`/execution/feeders/${feederId}/restore`, { close_time: closeTime });
+  return data;
+};
+
 export interface EmergencyCutFeederInfo {
   feeder_id: string;
   feeder_name: string;
