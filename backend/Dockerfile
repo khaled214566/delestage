@@ -5,7 +5,8 @@ RUN pip install uv
 WORKDIR /app
 
 COPY pyproject.toml .
-RUN uv pip install --system -r pyproject.toml || echo 'Ignoring missing dependencies resolution for now'
+# Fail the build loudly if a dependency cannot be installed (no silent fallback). [dev] adds pytest/ruff.
+RUN uv pip install --system -r pyproject.toml --extra dev
 
 COPY . .
 
