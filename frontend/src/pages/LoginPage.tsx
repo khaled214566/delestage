@@ -5,7 +5,7 @@ import '../App.css';
 
 const DEMO_ACCOUNTS = [
   { username: 'ahmed', label: 'Ahmed', role: 'Dispatcher', scope: 'National' },
-  { username: 'sana', label: 'Sana', role: 'BCC Opérateur', scope: 'BCC1 Tunis' },
+  { username: 'sana', label: 'Sana', role: 'BCC Opérateur', scope: 'BCC1 — Grand Tunis' },
   { username: 'crc_n', label: 'CRC Nord', role: 'CRC Opérateur', scope: 'Région Nord' },
   { username: 'admin', label: 'Admin', role: 'Administrateur', scope: 'Système' },
 ];

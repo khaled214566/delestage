@@ -1,0 +1,265 @@
+pcode,name_fr,name_ar,governorate,bcc_id,population_2024,managed_load_mw,peak_load_mw
+TN1251,Ariana Médina,اريانة المدينة,Ariana,BCC1,124160,20.1,53.6
+TN1256,Ettadhamen,حي التضامن,Ariana,BCC1,81181,13.1,35.0
+TN1254,Kalaat El Andalous,قلعة الأندلس,Ariana,BCC1,81181,13.1,35.0
+TN1257,Mnihla,المنيهلة,Ariana,BCC1,81181,13.1,35.0
+TN1253,Raoued,روّاد,Ariana,BCC1,81181,13.1,35.0
+TN1255,Sidi Thabet,سيدي ثابت,Ariana,BCC1,81181,13.1,35.0
+TN1252,Soukra,سكرة,Ariana,BCC1,81181,13.1,35.0
+TN1351,Ben Arous,بن عروس,Ben Arous,BCC1,51200,9.0,24.0
+TN1356,Boumhel,بومهل البساتين,Ben Arous,BCC1,51200,9.0,24.0
+TN1353,El Mourouj,المروج,Ben Arous,BCC1,51200,9.0,24.0
+TN1357,Ezzahra,الزهراء,Ben Arous,BCC1,51200,9.0,24.0
+TN1361,Fouchana,فوشانة,Ben Arous,BCC1,51200,9.0,24.0
+TN1355,Hammam Chott,حمام الشط,Ben Arous,BCC1,51200,9.0,24.0
+TN1354,Hammam Lif,حمام الأنف,Ben Arous,BCC1,51200,9.0,24.0
+TN1360,M'Hamdia,المحمدية,Ben Arous,BCC1,51200,9.0,24.0
+TN1362,Mornag,مرناق,Ben Arous,BCC1,51200,9.0,24.0
+TN1359,Mégrine,مقرين,Ben Arous,BCC1,51200,9.0,24.0
+TN1352,Nouvelle Médina,المدينة الجديدة,Ben Arous,BCC1,78306,13.7,36.7
+TN1358,Radès,رادس,Ben Arous,BCC1,51200,9.0,24.0
+TN1751,Bizerte Nord,بنزرت الشمالية,Bizerte,BCC4,56400,8.7,23.3
+TN1753,Bizerte Sud,بنزرت الجنوبية,Bizerte,BCC4,56400,8.7,23.3
+TN1763,El Alia,العالية,Bizerte,BCC4,36877,5.7,15.2
+TN1761,Ghar El Melh,غار الملح,Bizerte,BCC4,36877,5.7,15.2
+TN1757,Ghazala,غزالة,Bizerte,BCC4,36877,5.7,15.2
+TN1752,Jarzouna,جرزونة,Bizerte,BCC4,36877,5.7,15.2
+TN1755,Joumine,جومين,Bizerte,BCC4,36877,5.7,15.2
+TN1756,Mateur,ماطر,Bizerte,BCC4,36877,5.7,15.2
+TN1758,Menzel Bourguiba,منزل بورقيبة,Bizerte,BCC4,36877,5.7,15.2
+TN1762,Menzel Jemil,منزل جميل,Bizerte,BCC4,36877,5.7,15.2
+TN1764,Ras Jebel,راس الجبل,Bizerte,BCC4,36877,5.7,15.2
+TN1754,Sejnane,سجنان,Bizerte,BCC4,36877,5.7,15.2
+TN1759,Tinja,تينجة,Bizerte,BCC4,36877,5.7,15.2
+TN1760,Utique,أوتيك,Bizerte,BCC4,36877,5.7,15.2
+TN2153,Amdoun,عمدون,Béja,BCC4,29412,3.5,9.4
+TN2151,Béja Nord,باجة الشمالية,Béja,BCC4,44982,5.4,14.3
+TN2152,Béja Sud,باجة الجنوبية,Béja,BCC4,44982,5.4,14.3
+TN2158,Goubellat,قبلاط,Béja,BCC4,29412,3.5,9.4
+TN2159,Mejez El Bab,مجاز الباب,Béja,BCC4,29412,3.5,9.4
+TN2154,Nefza,نفزة,Béja,BCC4,29412,3.5,9.4
+TN2157,Testour,تستور,Béja,BCC4,44982,5.4,14.3
+TN2156,Thibar,تيبار,Béja,BCC4,29412,3.5,9.4
+TN2155,Téboursouk,تبرسق,Béja,BCC4,29412,3.5,9.4
+TN5151,Gabès Médina,قابس المدينة,Gabès,BCC6,53410,9.8,26.0
+TN5152,Gabès Ouest,قابس الغربية,Gabès,BCC6,53410,9.8,26.0
+TN5153,Gabès Sud,قابس الجنوبية,Gabès,BCC6,53410,9.8,26.0
+TN5154,Ghannouch,غنوش,Gabès,BCC6,34922,6.4,17.0
+TN5157,Hamma,الحامة,Gabès,BCC6,34922,6.4,17.0
+TN5160,Mareth,مارث,Gabès,BCC6,34922,6.4,17.0
+TN5158,Matmata,مطماطة,Gabès,BCC6,34922,6.4,17.0
+TN5159,Matmata Nouvelle,مطماطة الجديدة,Gabès,BCC6,34922,6.4,17.0
+TN5156,Menzel Habib,منزل الحبيب,Gabès,BCC6,34922,6.4,17.0
+TN5155,Metouia,المطوية,Gabès,BCC6,34922,6.4,17.0
+TN6160,Belkhir,بلخير,Gafsa,BCC7,30042,4.9,13.0
+TN6151,Gafsa Nord,قفصة الشمالية,Gafsa,BCC7,45946,7.4,19.8
+TN6154,Gafsa Sud,قفصة الجنوبية,Gafsa,BCC7,45946,7.4,19.8
+TN6159,Guetar,القطار,Gafsa,BCC7,30042,4.9,13.0
+TN6153,Ksar,القصر,Gafsa,BCC7,30042,4.9,13.0
+TN6158,Mdhilla,المضيلة,Gafsa,BCC7,30042,4.9,13.0
+TN6157,Metlaoui,المتلوي,Gafsa,BCC7,30042,4.9,13.0
+TN6155,Oum Larais,أم العرائس,Gafsa,BCC7,30042,4.9,13.0
+TN6156,Redeyef,الرديف,Gafsa,BCC7,30042,4.9,13.0
+TN6161,Sened,السند,Gafsa,BCC7,30042,4.9,13.0
+TN6152,Sidi Aich,سيدي عيش,Gafsa,BCC7,30042,4.9,13.0
+TN2255,Aïn Draham,عين دراهم,Jendouba,BCC4,38189,4.6,12.2
+TN2259,Balta Bou Aouane,بلطة بوعوان,Jendouba,BCC4,38189,4.6,12.2
+TN2253,Bousalem,بوسالم,Jendouba,BCC4,38189,4.6,12.2
+TN2256,Fernana,فرنانة,Jendouba,BCC4,38189,4.6,12.2
+TN2257,Ghardimaou,غار الدماء,Jendouba,BCC4,38189,4.6,12.2
+TN2252,Jendouba Nord,جندوبة الشمالية,Jendouba,BCC4,58406,7.0,18.6
+TN2251,Jendouba Sud,جندوبة,Jendouba,BCC4,58406,7.0,18.6
+TN2258,Oued Mliz,وادي مليز,Jendouba,BCC4,38189,4.6,12.2
+TN2254,Tabarka,طبرقة,Jendouba,BCC4,38189,4.6,12.2
+TN4157,Alaa,العلاء,Kairouan,BCC3,46426,5.9,15.7
+TN4161,Bouhajla,بوحجلة,Kairouan,BCC3,46426,5.9,15.7
+TN4153,Chebika,الشبيكة,Kairouan,BCC3,46426,5.9,15.7
+TN4160,Chrarda,الشراردة,Kairouan,BCC3,46426,5.9,15.7
+TN4156,Haffouz,حفوز,Kairouan,BCC3,46426,5.9,15.7
+TN4158,Hajeb El Ayoun,حاجب العيون,Kairouan,BCC3,46426,5.9,15.7
+TN4151,Kairouan Nord,القيروان الشمالية,Kairouan,BCC3,71004,9.0,24.0
+TN4152,Kairouan Sud,القيروان الجنوبية,Kairouan,BCC3,71004,9.0,24.0
+TN4159,Nasrallah,نصر اللّه,Kairouan,BCC3,46426,5.9,15.7
+TN4155,Oueslatia,الوسلاتية,Kairouan,BCC3,46426,5.9,15.7
+TN4154,Sbikha,السبيخة,Kairouan,BCC3,46426,5.9,15.7
+TN4258,Ayoun,العيون,Kasserine,BCC7,29916,3.6,9.5
+TN4253,Ezzouhour,الزهور,Kasserine,BCC7,29916,3.6,9.5
+TN4253,Ezzouhour,الزهور,Kasserine,BCC7,29916,3.6,9.5
+TN4262,Feriana,فريانة,Kasserine,BCC7,29916,3.6,9.5
+TN4261,Foussana,فوسانة,Kasserine,BCC7,29916,3.6,9.5
+TN4254,Hassi El Ferid,حاسي الفريد,Kasserine,BCC7,29916,3.6,9.5
+TN4260,Hidra,حيدرة,Kasserine,BCC7,29916,3.6,9.5
+TN4257,Jedeliane,جدليان,Kasserine,BCC7,29916,3.6,9.5
+TN4251,Kasserine Nord,القصرين الشمالية,Kasserine,BCC7,45755,5.5,14.6
+TN4252,Kasserine Sud,القصرين الجنوبية,Kasserine,BCC7,45755,5.5,14.6
+TN4263,Majel Belabbes,ماجل بلعباس,Kasserine,BCC7,29916,3.6,9.5
+TN4255,Sbeitla,سبيطلة,Kasserine,BCC7,29916,3.6,9.5
+TN4256,Sbiba,سبيبة,Kasserine,BCC7,29916,3.6,9.5
+TN4259,Thala,تالة,Kasserine,BCC7,29916,3.6,9.5
+TN6354,Douz Nord,دوز الشمالية,Kébili,BCC7,39694,4.5,11.9
+TN6355,Douz Sud,دوز الجنوبية,Kébili,BCC7,39694,4.5,11.9
+TN6356,Faouar,فوار,Kébili,BCC7,25953,2.9,7.8
+TN6352,Kebili Nord,قبلي الشمالية,Kébili,BCC7,39694,4.5,11.9
+TN6351,Kebili Sud,قبلي الجنوبية,Kébili,BCC7,39694,4.5,11.9
+TN6353,Souk El Ahed,سوق الأحد,Kébili,BCC7,25953,2.9,7.8
+TN2360,Dahmani,الدهماني,Le Kef,BCC4,18367,2.1,5.5
+TN2361,Es Sers,السرس,Le Kef,BCC4,18367,2.1,5.5
+TN2358,Jerissa,الجريصة,Le Kef,BCC4,18367,2.1,5.5
+TN2357,Kalaa Khesba,القلعة الخصباء,Le Kef,BCC4,18367,2.1,5.5
+TN2356,Kalaat Senan,قلعة سنان,Le Kef,BCC4,18367,2.1,5.5
+TN2352,Kef Est,الكاف الشرقية,Le Kef,BCC4,28090,3.2,8.4
+TN2351,Kef Ouest,الكاف الغربية,Le Kef,BCC4,28090,3.2,8.4
+TN2359,Ksour,القصور,Le Kef,BCC4,18367,2.1,5.5
+TN2353,Nebeur,نبر,Le Kef,BCC4,18367,2.1,5.5
+TN2354,Sakiet Sidi Youssef,ساقية سيدي يوسف,Le Kef,BCC4,18367,2.1,5.5
+TN2355,Tajerouine,تاجروين,Le Kef,BCC4,18367,2.1,5.5
+TN3352,Boumerdès,بومرداس,Mahdia,BCC3,34772,4.6,12.4
+TN3358,Chebba,الشابة,Mahdia,BCC3,34772,4.6,12.4
+TN3354,Chorbane,شربان,Mahdia,BCC3,34772,4.6,12.4
+TN3357,El Jem,الجم,Mahdia,BCC3,34772,4.6,12.4
+TN3355,Hbira,هبيرة,Mahdia,BCC3,34772,4.6,12.4
+TN3361,Ksour Essef,قصور الساف,Mahdia,BCC3,34772,4.6,12.4
+TN3351,Mahdia,المهدية,Mahdia,BCC3,34772,4.6,12.4
+TN3359,Melloulech,ملولش,Mahdia,BCC3,34772,4.6,12.4
+TN3353,Ouled Chamekh,أولاد شامخ,Mahdia,BCC3,34772,4.6,12.4
+TN3360,Sidi Alouane,سيدي علوان,Mahdia,BCC3,34772,4.6,12.4
+TN3356,Souassi,السواسي,Mahdia,BCC3,34772,4.6,12.4
+TN1455,Borj El Amri,برج العامري,Manubah,BCC1,31875,5.3,13.8
+TN1452,Douar Hicher,دوار هيشر,Manubah,BCC1,31875,5.3,13.8
+TN1458,El Battan,البطان,Manubah,BCC1,31875,5.3,13.8
+TN1456,Jedaida,الجديدة,Manubah,BCC1,31875,5.3,13.8
+TN1451,Manouba,منوبة,Manubah,BCC1,31875,5.3,13.8
+TN1454,Mornaguia,المرناقية,Manubah,BCC1,31875,5.3,13.8
+TN1453,Oued Ellil,وادي الليل,Manubah,BCC1,31875,5.3,13.8
+TN1457,Tebourba,طبربة,Manubah,BCC1,31875,5.3,13.8
+TN3259,Bekalta,البقالطة,Monastir,BCC3,39216,6.3,16.9
+TN3257,Bembla,بنبلة,Monastir,BCC3,39216,6.3,16.9
+TN3255,Beni Hassen,بني حسان,Monastir,BCC3,39216,6.3,16.9
+TN3256,Jammel,جمال,Monastir,BCC3,39216,6.3,16.9
+TN3261,Ksar Hellal,قصر هلال,Monastir,BCC3,39216,6.3,16.9
+TN3262,Ksibet El Mediouni,قصيبة المديوني,Monastir,BCC3,39216,6.3,16.9
+TN3258,Moknine,المكنين,Monastir,BCC3,39216,6.3,16.9
+TN3251,Monastir,المنستير,Monastir,BCC3,39216,6.3,16.9
+TN3252,Ouerdanine,الوردانين,Monastir,BCC3,39216,6.3,16.9
+TN3253,Sahline,الساحلين,Monastir,BCC3,39216,6.3,16.9
+TN3263,Sayada-Lamta-Bou Hjar,صيادة - لمطة - بوحجر,Monastir,BCC3,39216,6.3,16.9
+TN3260,Teboulba,طبلبة,Monastir,BCC3,39216,6.3,16.9
+TN3254,Zeramdine,زرمدين,Monastir,BCC3,39216,6.3,16.9
+TN5254,Ben Guerdane,بنقردان,Médenine,BCC6,50741,7.8,20.9
+TN5253,Beni Khedache,بني خداش,Médenine,BCC6,50741,7.8,20.9
+TN5258,Djerba Ajim,جربة أجيم,Médenine,BCC6,50741,7.8,20.9
+TN5257,Djerba Midoun,جربة ميدون,Médenine,BCC6,50741,7.8,20.9
+TN5256,Houmt Souk,جربة حومة السوق,Médenine,BCC6,50741,7.8,20.9
+TN5251,Médenine Nord,مدنين الشمالية,Médenine,BCC6,77604,12.0,32.0
+TN5252,Médenine Sud,مدنين الجنوبية,Médenine,BCC6,77604,12.0,32.0
+TN5259,Sidi Makhlouf,سيدي مخلوف,Médenine,BCC6,50741,7.8,20.9
+TN5255,Zarzis,جرجيس,Médenine,BCC6,50741,7.8,20.9
+TN1563,Beni Khalled,بني خلاد,Nabeul,BCC2,45856,7.1,18.9
+TN1553,Beni Khiar,بني خيار,Nabeul,BCC2,45856,7.1,18.9
+TN1565,Bou Argoub,بوعرقوب,Nabeul,BCC2,45856,7.1,18.9
+TN1552,Dar Chaabane El Fehri,دار شعبان الفهري,Nabeul,BCC2,45856,7.1,18.9
+TN1556,El Mida,الميدة,Nabeul,BCC2,45856,7.1,18.9
+TN1564,Grombalia,قرمبالية,Nabeul,BCC2,45856,7.1,18.9
+TN1558,Hammam Ghezaz,حمام الأغزاز,Nabeul,BCC2,45856,7.1,18.9
+TN1566,Hammamet,الحمامات,Nabeul,BCC2,45856,7.1,18.9
+TN1559,Haouaria,الهوارية,Nabeul,BCC2,45856,7.1,18.9
+TN1557,Kelibia,قليبية,Nabeul,BCC2,45856,7.1,18.9
+TN1554,Korba,قربة,Nabeul,BCC2,45856,7.1,18.9
+TN1562,Menzel Bouzelfa,منزل بوزلفة,Nabeul,BCC2,45856,7.1,18.9
+TN1555,Menzel Temime,منزل تميم,Nabeul,BCC2,45856,7.1,18.9
+TN1551,Nabeul,نابل,Nabeul,BCC2,45856,7.1,18.9
+TN1561,Soliman,سليمان,Nabeul,BCC2,45856,7.1,18.9
+TN1560,Takelsa,تاكلسة,Nabeul,BCC2,45856,7.1,18.9
+TN3457,Agareb,عقارب,Sfax,BCC5,55647,10.6,28.2
+TN3463,Bir Ali Ben Khélifa,بئر علي بن خليفة,Sfax,BCC5,55647,10.6,28.2
+TN3459,El Amra,العامرة,Sfax,BCC5,55647,10.6,28.2
+TN3462,El Ghraiba,الغريبة,Sfax,BCC5,55647,10.6,28.2
+TN3460,Hencha,الحنشة,Sfax,BCC5,55647,10.6,28.2
+TN3458,Jebeniana,جبنيانة,Sfax,BCC5,55647,10.6,28.2
+TN3466,Kerkennah,قرقنة,Sfax,BCC5,55647,10.6,28.2
+TN3465,Mahres,المحرس,Sfax,BCC5,55647,10.6,28.2
+TN3461,Menzel Chaker,منزل شاكر,Sfax,BCC5,55647,10.6,28.2
+TN3454,Sakiet Eddaier,ساقية الدائر,Sfax,BCC5,55647,10.6,28.2
+TN3453,Sakiet Ezzit,ساقية الزيت,Sfax,BCC5,55647,10.6,28.2
+TN3451,Sfax Médina,صفاقس المدينة,Sfax,BCC5,85107,16.1,43.1
+TN3452,Sfax Ouest,صفاقس الغريبة,Sfax,BCC5,85107,16.1,43.1
+TN3455,Sfax Sud,صفاقس الجنوبية,Sfax,BCC5,85107,16.1,43.1
+TN3464,Skhira,الصخيرة,Sfax,BCC5,55647,10.6,28.2
+TN3456,Thyna,طينة,Sfax,BCC5,55647,10.6,28.2
+TN4355,Bir El Hfay,بئر الحفي,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4353,Jelma,جلمة,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4360,Mazzouna,المزونة,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4358,Meknassi,المكناسي,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4357,Menzel Bouzaiene,منزل بوزيان,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4362,Ouled Haffouz,أولاد حفوز,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4361,Regueb,الرقاب,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4354,Sabalat Ouled Asker,سبالة أولاد عسكر,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4356,Sidi Ali Ben Aoun,سيدي علي بن عون,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN4352,Sidi Bouzid Est,سيدي بوزيد الشرقية,Sidi Bou Zid,BCC7,32500,5.4,14.1
+TN4351,Sidi Bouzid Ouest,سيدي بوزيد الغربية,Sidi Bou Zid,BCC7,32500,5.4,14.1
+TN4359,Souk Jedid,سوق الجديد,Sidi Bou Zid,BCC7,21250,3.5,9.2
+TN2460,Bargou,برقو,Siliana,BCC4,16710,1.9,5.0
+TN2453,Bouarada,بوعرادة,Siliana,BCC4,16710,1.9,5.0
+TN2456,Bourouis,بورويس,Siliana,BCC4,16710,1.9,5.0
+TN2455,El Krib,الكريب,Siliana,BCC4,16710,1.9,5.0
+TN2454,Gaafour,قعفور,Siliana,BCC4,16710,1.9,5.0
+TN2459,Kesra,كسرى,Siliana,BCC4,16710,1.9,5.0
+TN2461,Laroussa,العروسة,Siliana,BCC4,16710,1.9,5.0
+TN2457,Makthar,مكثر,Siliana,BCC4,16710,1.9,5.0
+TN2458,Rouhia,الروحية,Siliana,BCC4,16710,1.9,5.0
+TN2451,Siliana Nord,سليانة الشمالية,Siliana,BCC4,25556,2.9,7.7
+TN2452,Siliana Sud,سليانة الجنوبية,Siliana,BCC4,25556,2.9,7.7
+TN3156,Akouda,اكودة,Sousse,BCC3,40496,6.8,18.2
+TN3161,Bouficha,بوفيشة,Sousse,BCC3,40496,6.8,18.2
+TN3160,Enfidha,النفيضة,Sousse,BCC3,40496,6.8,18.2
+TN3155,Hammam Sousse,حمام سوسة,Sousse,BCC3,40496,6.8,18.2
+TN3159,Hergla,هرقلة,Sousse,BCC3,40496,6.8,18.2
+TN3157,Kalaa Kebira,القلعة الكبرى,Sousse,BCC3,40496,6.8,18.2
+TN3165,Kalaa Sghira,القلعة الصغرى,Sousse,BCC3,40496,6.8,18.2
+TN3162,Kondar,كندار,Sousse,BCC3,40496,6.8,18.2
+TN3164,M'Saken,مساكن,Sousse,BCC3,40496,6.8,18.2
+TN3158,Sidi Bou Ali,سيدي بوعلي,Sousse,BCC3,40496,6.8,18.2
+TN3163,Sidi El Heni,سيدي الهاني,Sousse,BCC3,40496,6.8,18.2
+TN3153,Sousse Jaouhara,سوسة جوهرة,Sousse,BCC3,40496,6.8,18.2
+TN3151,Sousse Médina,سوسة المدينة,Sousse,BCC3,61935,10.4,27.9
+TN3152,Sousse Riadh,سوسة الرياض,Sousse,BCC3,40496,6.8,18.2
+TN3154,Sousse Sidi Abdelhamid,سوسة سيدي عبد الحميد,Sousse,BCC3,40496,6.8,18.2
+TN3166,Zaouia Ksiba Thraya,الزاوية - القصيبة - الثريات,Sousse,BCC3,40496,6.8,18.2
+TN5354,Bir Lahmar,بئر الأحمر,Tataouine,BCC6,19751,2.1,5.6
+TN5356,Dhiba,ذهيبة,Tataouine,BCC6,19751,2.1,5.6
+TN5355,Ghomrassen,غمراسن,Tataouine,BCC6,19751,2.1,5.6
+TN5357,Remada,رمادة,Tataouine,BCC6,19751,2.1,5.6
+TN5353,Samar,الصمار,Tataouine,BCC6,19751,2.1,5.6
+TN5351,Tataouine Nord,تطاوين الشمالية,Tataouine,BCC6,30207,3.2,8.5
+TN5352,Tataouine Sud,تطاوين الجنوبية,Tataouine,BCC6,30207,3.2,8.5
+TN6252,Degueche,دقاش,Tozeur,BCC7,20406,2.6,6.9
+TN6255,Hazoua,حزوة,Tozeur,BCC7,20406,2.6,6.9
+TN6254,Nefta,نفطة,Tozeur,BCC7,20406,2.6,6.9
+TN6253,Tamaghza,تمغزة,Tozeur,BCC7,20406,2.6,6.9
+TN6251,Tozeur,توزر,Tozeur,BCC7,20406,2.6,6.9
+TN1153,Bab Bhar,باب البحر,Tunis,BCC1,45701,8.3,22.3
+TN1154,Bab Souika,باب سويقة,Tunis,BCC1,45701,8.3,22.3
+TN1160,Bardo,باردو,Tunis,BCC1,45701,8.3,22.3
+TN1151,Carthage,قرطاج,Tunis,BCC1,69895,12.8,34.1
+TN1159,Cité El Khadra,حي الخضراء,Tunis,BCC1,45701,8.3,22.3
+TN1158,El Menzah,المنزه,Tunis,BCC1,45701,8.3,22.3
+TN1165,El Ouardia,الوردية,Tunis,BCC1,45701,8.3,22.3
+TN1157,El Tahrir,التحرير,Tunis,BCC1,45701,8.3,22.3
+TN1163,Hrairia,الحرائرية,Tunis,BCC1,45701,8.3,22.3
+TN1168,Jebel Jelloud,جبل الجلود,Tunis,BCC1,45701,8.3,22.3
+TN1166,Kabaria,الكبارية,Tunis,BCC1,45701,8.3,22.3
+TN1169,La Goulette,حلق الوادي,Tunis,BCC1,45701,8.3,22.3
+TN1171,La Marsa,المرسى,Tunis,BCC1,69895,12.8,34.1
+TN1170,Le Kram,الكرم,Tunis,BCC1,45701,8.3,22.3
+TN1152,Médina,المدينة,Tunis,BCC1,69895,12.8,34.1
+TN1155,Omrane,العمران,Tunis,BCC1,45701,8.3,22.3
+TN1156,Omrane Supérieur,العمران الاعلى,Tunis,BCC1,45701,8.3,22.3
+TN1167,Sidi El Béchir,سيدي البشير,Tunis,BCC1,45701,8.3,22.3
+TN1164,Sidi Hassine,سيدي حسين,Tunis,BCC1,45701,8.3,22.3
+TN1161,Sijoumi,السيجومي,Tunis,BCC1,45701,8.3,22.3
+TN1653,Bir Mchergua,بئر مشارقة,Zaghouan,BCC2,28484,3.6,9.6
+TN1654,Fahs,الفحص,Zaghouan,BCC2,28484,3.6,9.6
+TN1655,Nadhour,الناظور,Zaghouan,BCC2,28484,3.6,9.6
+TN1656,Saouaf,صواف,Zaghouan,BCC2,28484,3.6,9.6
+TN1651,Zaghouan,زغوان,Zaghouan,BCC2,28484,3.6,9.6
+TN1652,Zriba,الزريبة,Zaghouan,BCC2,28484,3.6,9.6

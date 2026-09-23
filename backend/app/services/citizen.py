@@ -73,6 +73,9 @@ async def get_citizen_view(db: AsyncSession) -> dict:
 
     # Group by BCC (zone_id)
     zones: dict[str, dict] = {}
+    all_shedding_zone_ids: list[str] = []
+    all_shedding_delegations: list[str] = []
+
     for event, feeder in rows:
         zone = feeder.bcc_id
         meta = BCC_METADATA.get(zone, {
@@ -88,7 +91,21 @@ async def get_citizen_view(db: AsyncSession) -> dict:
                 "governorates": meta["governorates"],
                 "status": "SHEDDING",
                 "events": [],
+                "affected_delegations": [],
+                "affected_zone_ids": [],
             }
+
+        # Track specific delegation and zone ID
+        zid = feeder.zone_id.removeprefix("Z-")
+        clean_del_name = feeder.name.removeprefix("Départ ").strip()
+        all_shedding_zone_ids.append(zid)
+        all_shedding_delegations.append(clean_del_name)
+
+        if clean_del_name not in zones[zone]["affected_delegations"]:
+            zones[zone]["affected_delegations"].append(clean_del_name)
+        if zid not in zones[zone]["affected_zone_ids"]:
+            zones[zone]["affected_zone_ids"].append(zid)
+
         duration = event.compute_duration(now) if event.open_time else 0.0
         estimated_end = None
         if event.open_time:
@@ -101,6 +118,10 @@ async def get_citizen_view(db: AsyncSession) -> dict:
             "alarm_level": event.get_alarm_level(45.0, now).value,
             "duration_min": int(duration),
             "feeders_affected": 1,
+            "feeder_name": feeder.name,
+            "delegation": clean_del_name,
+            "zone_id": zid,
+            "mw": event.mw_actual,
         })
 
     # Consolidate zones
@@ -121,6 +142,8 @@ async def get_citizen_view(db: AsyncSession) -> dict:
                 "status": "NORMAL",
                 "events": [],
                 "feeders_affected": 0,
+                "affected_delegations": [],
+                "affected_zone_ids": [],
             })
 
     # Sort: shedding zones first, then alphabetically
@@ -130,5 +153,7 @@ async def get_citizen_view(db: AsyncSession) -> dict:
         "generated_at": now.isoformat(),
         "total_zones": len(BCC_METADATA),
         "currently_shedding": len(zones),
+        "shedding_zone_ids": list(set(all_shedding_zone_ids)),
+        "shedding_delegations": list(set(all_shedding_delegations)),
         "zones": zone_list,
     }

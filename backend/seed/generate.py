@@ -24,9 +24,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import csv
 import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 
@@ -46,13 +48,13 @@ CRCS = [
 ]
 
 BCCS = [
-    {"id": "BCC1", "name": "BCC Tunis", "crc_id": "CRC_N", "managed_load_mw": 420.0, "area_km2": 1200.0},
-    {"id": "BCC2", "name": "BCC Nabeul", "crc_id": "CRC_N", "managed_load_mw": 360.0, "area_km2": 3100.0},
-    {"id": "BCC3", "name": "BCC Sousse", "crc_id": "CRC_N", "managed_load_mw": 240.0, "area_km2": 2800.0},
-    {"id": "BCC4", "name": "BCC Bizerte", "crc_id": "CRC_N", "managed_load_mw": 180.0, "area_km2": 3500.0},
-    {"id": "BCC5", "name": "BCC Sfax", "crc_id": "CRC_S", "managed_load_mw": 310.0, "area_km2": 4800.0},
-    {"id": "BCC6", "name": "BCC Gabès", "crc_id": "CRC_S", "managed_load_mw": 190.0, "area_km2": 6200.0},
-    {"id": "BCC7", "name": "BCC Gafsa", "crc_id": "CRC_S", "managed_load_mw": 130.0, "area_km2": 7100.0},
+    {"id": "BCC1", "name": "BCC Tunis (Grand Tunis)", "crc_id": "CRC_N", "managed_load_mw": 420.0, "area_km2": 1200.0},
+    {"id": "BCC2", "name": "BCC Nabeul (Cap Bon)", "crc_id": "CRC_N", "managed_load_mw": 360.0, "area_km2": 3100.0},
+    {"id": "BCC3", "name": "BCC Sousse (Sahel)", "crc_id": "CRC_N", "managed_load_mw": 240.0, "area_km2": 2800.0},
+    {"id": "BCC4", "name": "BCC Bizerte (Nord-Ouest)", "crc_id": "CRC_N", "managed_load_mw": 180.0, "area_km2": 3500.0},
+    {"id": "BCC5", "name": "BCC Sfax (Sfax)", "crc_id": "CRC_S", "managed_load_mw": 310.0, "area_km2": 4800.0},
+    {"id": "BCC6", "name": "BCC Gabès (Sud-Est)", "crc_id": "CRC_S", "managed_load_mw": 190.0, "area_km2": 6200.0},
+    {"id": "BCC7", "name": "BCC Gafsa (Sud-Ouest)", "crc_id": "CRC_S", "managed_load_mw": 130.0, "area_km2": 7100.0},
 ]
 
 # Three substations per BCC: (zone code, substation name, local label).
@@ -158,6 +160,20 @@ def make_history(rng: np.random.Generator, priority: str, ref: datetime) -> dict
     }
 
 
+# Load real Tunisian delegation data if available
+DELEGATIONS_BY_BCC: dict[str, list[dict]] = {}
+try:
+    _csv_file = Path(__file__).resolve().parent.parent / "data" / "tunisia_load_data.csv"
+    if _csv_file.exists():
+        with open(_csv_file, mode="r", encoding="utf-8") as _f:
+            for _row in csv.DictReader(_f):
+                DELEGATIONS_BY_BCC.setdefault(_row["bcc_id"], []).append(_row)
+        for _b in DELEGATIONS_BY_BCC:
+            DELEGATIONS_BY_BCC[_b].sort(key=lambda x: -int(x.get("population_2024", 0)))
+except Exception:
+    pass
+
+
 def build_network(seed: int = DEFAULT_SEED, ref: datetime = REFERENCE_TIME) -> Network:
     rng = np.random.default_rng(seed)
     substations: list[dict] = []
@@ -188,6 +204,7 @@ def build_network(seed: int = DEFAULT_SEED, ref: datetime = REFERENCE_TIME) -> N
             candidates = [i for i, p in enumerate(priorities) if p != "P0"]
             special_idx = candidates[int(rng.integers(0, len(candidates)))]
 
+        dels = DELEGATIONS_BY_BCC.get(bcc_id, [])
         per_sub_count: dict[int, int] = {}
         for i in range(n):
             s_idx = i * len(subs) // n                       # contiguous, balanced blocks
@@ -196,15 +213,26 @@ def build_network(seed: int = DEFAULT_SEED, ref: datetime = REFERENCE_TIME) -> N
             zone_code, _, label = subs[s_idx]
             fid = f"F-{num}{i + 1:02d}"
             priority = priorities[i]
+
+            # Assign real delegation if available, fallback to label + counter
+            if dels:
+                d = dels[i % len(dels)]
+                suffix = f" {i // len(dels) + 1}" if n > len(dels) else ""
+                feeder_name = f"Départ {d['name_fr']}{suffix}"
+                zone_id = f"Z-{d['pcode']}"
+            else:
+                feeder_name = f"Départ {label} {j}"
+                zone_id = f"Z-{zone_code}-{(j - 1) // 2 + 1}"
+
             feeders.append({
                 "id": fid,
-                "name": f"Départ {label} {j}",
+                "name": feeder_name,
                 "substation_id": f"SS-{num}{s_idx + 1:02d}",
                 "bcc_id": bcc_id,
                 "priority": priority,
                 "critical": priority == "P0",
                 "avg_mw": sizes[i],
-                "zone_id": f"Z-{zone_code}-{(j - 1) // 2 + 1}",   # ~2 feeders per citizen zone
+                "zone_id": zone_id,
                 "status": SPECIAL_STATUS[bcc_id] if i == special_idx else "CLOSED",
                 "created_at": ref - timedelta(days=90),
             })

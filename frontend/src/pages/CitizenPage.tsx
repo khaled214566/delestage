@@ -172,7 +172,7 @@ export default function CitizenPage() {
       {/* Network Map */}
       <div className="citizen-map-section">
         <h2 className="citizen-section-title">Carte du réseau</h2>
-        <CitizenMap zones={data?.zones ?? []} />
+        <CitizenMap zones={data?.zones ?? []} sheddingZoneIds={data?.shedding_zone_ids} />
       </div>
 
       {/* Zones Grid */}
@@ -210,6 +210,12 @@ export default function CitizenPage() {
                 <div className="governorates-tag">
                   📍 <strong>Gouvernorats :</strong> {zone.governorates || 'Secteur régional'}
                 </div>
+
+                {isShedding && zone.affected_delegations && zone.affected_delegations.length > 0 && (
+                  <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: '#c53030', fontWeight: 600 }}>
+                    ⚡ <strong>Délégations impactées :</strong> {zone.affected_delegations.join(', ')}
+                  </div>
+                )}
 
                 {isShedding ? (
                   <div className="zone-details">

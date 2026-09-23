@@ -151,13 +151,13 @@ const CRC_OPTIONS = [
 ];
 
 const BCC_OPTIONS = [
-  { id: 'BCC1', name: 'BCC1 — Tunis (Nord)' },
-  { id: 'BCC2', name: 'BCC2 — Nabeul (Nord)' },
-  { id: 'BCC3', name: 'BCC3 — Sousse (Nord)' },
-  { id: 'BCC4', name: 'BCC4 — Bizerte (Nord)' },
-  { id: 'BCC5', name: 'BCC5 — Sfax (Sud)' },
-  { id: 'BCC6', name: 'BCC6 — Gabès (Sud)' },
-  { id: 'BCC7', name: 'BCC7 — Gafsa (Sud)' },
+  { id: 'BCC1', name: 'BCC1 — Tunis (Grand Tunis)' },
+  { id: 'BCC2', name: 'BCC2 — Nabeul (Cap Bon)' },
+  { id: 'BCC3', name: 'BCC3 — Sousse (Sahel)' },
+  { id: 'BCC4', name: 'BCC4 — Bizerte & Béja (Nord-Ouest)' },
+  { id: 'BCC5', name: 'BCC5 — Sfax (Sfax)' },
+  { id: 'BCC6', name: 'BCC6 — Gabès & Médenine (Sud-Est)' },
+  { id: 'BCC7', name: 'BCC7 — Gafsa & Sud-Ouest' },
 ];
 
 function UsersTab() {

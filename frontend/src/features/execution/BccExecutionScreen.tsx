@@ -13,13 +13,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import RotationPanel from './RotationPanel';
 
 const BCC_LIST = [
-  { id: 'BCC1', name: 'BCC Tunis (Nord)' },
-  { id: 'BCC2', name: 'BCC Nabeul (Nord)' },
-  { id: 'BCC3', name: 'BCC Sousse (Nord)' },
-  { id: 'BCC4', name: 'BCC Bizerte (Nord)' },
-  { id: 'BCC5', name: 'BCC Sfax (Sud)' },
-  { id: 'BCC6', name: 'BCC Gabès (Sud)' },
-  { id: 'BCC7', name: 'BCC Gafsa (Sud)' },
+  { id: 'BCC1', name: 'BCC1 — Tunis (Grand Tunis)' },
+  { id: 'BCC2', name: 'BCC2 — Nabeul (Cap Bon)' },
+  { id: 'BCC3', name: 'BCC3 — Sousse (Sahel)' },
+  { id: 'BCC4', name: 'BCC4 — Bizerte & Béja (Nord-Ouest)' },
+  { id: 'BCC5', name: 'BCC5 — Sfax (Sfax)' },
+  { id: 'BCC6', name: 'BCC6 — Gabès & Médenine (Sud-Est)' },
+  { id: 'BCC7', name: 'BCC7 — Gafsa & Sud-Ouest' },
 ];
 
 export default function BccExecutionScreen() {
@@ -332,7 +332,9 @@ export default function BccExecutionScreen() {
                 <div className="action-card-header">
                   <div>
                     <h4 className="card-feeder-name">{f.feeder_name}</h4>
-                    <span className="card-substation">{f.substation_name} · ({f.feeder_id})</span>
+                    <span className="card-substation">
+                      📍 District / Délégation : <strong>{f.feeder_name.replace('Départ ', '')}</strong> · {f.substation_name} ({f.feeder_id})
+                    </span>
                   </div>
                   <div className="card-timer">
                     <span className="timer-label">Temps coupé :</span>
@@ -407,7 +409,9 @@ export default function BccExecutionScreen() {
                   </div>
                   <div className="card-identity-block">
                     <h4 className="card-feeder-name">{f.feeder_name}</h4>
-                    <span className="card-substation">{f.substation_name} · ({f.feeder_id})</span>
+                    <span className="card-substation">
+                      📍 District / Délégation : <strong>{f.feeder_name.replace('Départ ', '')}</strong> · {f.substation_name} ({f.feeder_id})
+                    </span>
                   </div>
                 </div>
 
