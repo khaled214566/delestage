@@ -9,8 +9,8 @@ venv/
 node_modules/
 .next/
 frontend/dist/
-*.log
+*.loggit
 .DS_Store
 .idea/
 .vscode/
-helper.txt
+/helper.txt
