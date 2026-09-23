@@ -106,9 +106,17 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
     gap_mw = round(target_mw - actual_mw, 1)
 
     items: List[FeederExecutionItem] = []
+    db_changed = False
     for f in feeders:
         open_ev = open_events.get(f.id)
-        is_open = open_ev is not None or f.status == FeederStatus.OPEN
+        if open_ev is None and f.status == FeederStatus.OPEN:
+            # Self-healing: feeder was marked OPEN without an active ShedEvent
+            f.status = FeederStatus.CLOSED
+            if f.history and not f.history.last_shed_end:
+                f.history.last_shed_end = now
+            db_changed = True
+
+        is_open = open_ev is not None
 
         # Eligibility check
         is_eligible = True
@@ -173,6 +181,9 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
                 alarm_level=alarm_lvl,
             )
         )
+
+    if db_changed:
+        await db.commit()
 
     return BccExecutionDashboard(
         bcc_id=bcc.id,
@@ -382,6 +393,85 @@ async def confirm_restoration(db: AsyncSession, event_id: int, req: ConfirmClose
     return event
 
 
+async def restore_feeder_by_id(
+    db: AsyncSession, feeder_id: str, req: ConfirmCloseRequest, user: User
+) -> dict:
+    """
+    Direct restoration by feeder ID.
+    If an open ShedEvent exists, delegates to confirm_restoration.
+    If no open event exists, heals feeder status to CLOSED and updates history.
+    """
+    open_ev = (await db.execute(
+        select(ShedEvent)
+        .where(ShedEvent.feeder_id == feeder_id, ShedEvent.status == EventStatus.OPEN)
+        .order_by(ShedEvent.id.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    if open_ev:
+        ev = await confirm_restoration(db, event_id=open_ev.id, req=req, user=user)
+        return {
+            "status": "ok",
+            "event_id": ev.id,
+            "feeder_id": ev.feeder_id,
+            "state": ev.status.value,
+            "duration_min": ev.duration_min,
+            "ens_mwh": ev.ens_mwh,
+            "close_time": ev.close_time.isoformat() if ev.close_time else None,
+        }
+
+    feeder = (await db.execute(
+        select(Feeder)
+        .options(selectinload(Feeder.history))
+        .where(Feeder.id == feeder_id)
+        .with_for_update()
+    )).scalar_one_or_none()
+
+    if not feeder:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Feeder '{feeder_id}' not found")
+
+    if user.role == UserRole.BCC_OPERATOR and user.scope_id != feeder.bcc_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Out of scope: cannot restore feeder belonging to {feeder.bcc_id}",
+        )
+
+    now = datetime.now(timezone.utc)
+    close_time = req.close_time or now
+
+    feeder.status = FeederStatus.CLOSED
+    if feeder.history and not feeder.history.last_shed_end:
+        feeder.history.last_shed_end = close_time
+
+    await audit.log(
+        db,
+        actor_id=str(user.id),
+        actor_name=user.name,
+        action="FEEDER_RESTORED",
+        entity_type="feeder",
+        entity_id=feeder.id,
+        payload={"feeder_id": feeder.id, "reconciled": True},
+    )
+
+    await db.commit()
+
+    summary = await monitoring_service.get_monitoring_summary(db)
+    await ws_manager.broadcast({
+        "type": "MONITORING_SUMMARY",
+        "data": summary.model_dump(mode="json"),
+    })
+
+    return {
+        "status": "ok",
+        "event_id": None,
+        "feeder_id": feeder.id,
+        "state": feeder.status.value,
+        "duration_min": 0,
+        "ens_mwh": 0.0,
+        "close_time": close_time.isoformat(),
+    }
+
+
 async def execute_emergency_auto_shed(
     db: AsyncSession,
     req: EmergencyAutoShedRequest,
@@ -404,7 +494,6 @@ async def execute_emergency_auto_shed(
     # 1. Find or create REAL_TIME plan
     plan_query = (
         select(DeficitPlan)
-        .options(selectinload(DeficitPlan.slots), selectinload(DeficitPlan.order))
         .where(DeficitPlan.date == plan_date, DeficitPlan.mode == OrderType.REAL_TIME)
     )
     plan = (await db.execute(plan_query)).scalar_one_or_none()
@@ -420,7 +509,6 @@ async def execute_emergency_auto_shed(
             created_by=user.id,
             validated_by=user.id,
             validated_at=now,
-            slots=[],
         )
         db.add(plan)
         await db.flush()
@@ -438,8 +526,11 @@ async def execute_emergency_auto_shed(
         db.add(slot)
         await db.flush()
     else:
-        # Update existing plan slot
-        if not plan.slots:
+        # Update existing plan slot — explicit query to avoid lazy load
+        existing_slots = list((await db.execute(
+            select(DeficitSlot).where(DeficitSlot.plan_id == plan.id)
+        )).scalars().all())
+        if not existing_slots:
             slot = DeficitSlot(
                 plan_id=plan.id,
                 slot_start=slot_start,
@@ -452,15 +543,35 @@ async def execute_emergency_auto_shed(
             )
             db.add(slot)
         else:
-            slot = plan.slots[0]
+            slot = existing_slots[0]
             slot.deficit_mw = deficit_mw
             slot.demand_mw = 3950.0 + deficit_mw
         plan.status = DeficitPlanStatus.VALIDATED
         await db.flush()
 
-    # 2. Setup or reuse order
-    if plan.order:
-        order = plan.order
+    # 2. Setup or reuse order — explicit query to avoid lazy load on plan.order
+    existing_order = (await db.execute(
+        select(ShedOrder).where(ShedOrder.plan_id == plan.id)
+    )).scalar_one_or_none()
+
+    if existing_order:
+        order = existing_order
+        # Close any previous OPEN shed events from this order
+        await db.execute(
+            update(ShedEvent)
+            .where(ShedEvent.order_id == order.id, ShedEvent.status == EventStatus.OPEN)
+            .values(status=EventStatus.CLOSED, close_time=now)
+        )
+        # Reset feeders that were opened by the previous run
+        prev_open_feeders = list((await db.execute(
+            select(ShedEvent.feeder_id).where(ShedEvent.order_id == order.id)
+        )).scalars().all())
+        if prev_open_feeders:
+            await db.execute(
+                update(Feeder)
+                .where(Feeder.id.in_(prev_open_feeders))
+                .values(status=FeederStatus.CLOSED)
+            )
         # Clean previous allocation nodes
         await db.execute(delete(AllocationNode).where(AllocationNode.order_id == order.id))
         order.status = OrderStatus.DRAFT
