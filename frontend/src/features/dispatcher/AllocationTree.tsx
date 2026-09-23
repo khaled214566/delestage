@@ -17,6 +17,18 @@ function slotLabel(slot: DeficitSlot | { slot_start: string; slot_end: string })
   return `${start}–${end}`;
 }
 
+const BCC_DISTRICT_NAMES: Record<string, string> = {
+  BCC1: 'BCC1 — Tunis & Grand Tunis',
+  BCC2: 'BCC2 — Nabeul & Cap Bon',
+  BCC3: 'BCC3 — Sousse & Sahel',
+  BCC4: 'BCC4 — Bizerte & Nord-Ouest',
+  BCC5: 'BCC5 — Sfax & Centre-Sud',
+  BCC6: 'BCC6 — Gabès & Sud-Est',
+  BCC7: 'BCC7 — Gafsa & Sud-Ouest',
+  CRC_N: 'CRC Nord (Nord & Sahel)',
+  CRC_S: 'CRC Sud (Sud & Centre)',
+};
+
 export default function AllocationTree({ nodes, slots = [], orderId, orderStatus }: AllocationTreeProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -144,7 +156,7 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
 
             {renderLevelBadge(node.level)}
 
-            <span className="entity-name">{node.entity_id}</span>
+            <span className="entity-name">{BCC_DISTRICT_NAMES[node.entity_id] || node.entity_id}</span>
 
             {orderStatus === 'ALLOCATED' && user?.role === 'DISPATCHER' && node.level === 'BCC' && (
               <button 

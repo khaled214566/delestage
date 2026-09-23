@@ -629,6 +629,10 @@ export interface CitizenEvent {
   alarm_level: string;
   duration_min: number;
   feeders_affected: number;
+  feeder_name?: string;
+  delegation?: string;
+  zone_id?: string;
+  mw?: number;
 }
 
 export interface CitizenZone {
@@ -639,12 +643,16 @@ export interface CitizenZone {
   status: 'SHEDDING' | 'NORMAL';
   events: CitizenEvent[];
   feeders_affected: number;
+  affected_delegations?: string[];
+  affected_zone_ids?: string[];
 }
 
 export interface CitizenStatusResponse {
   generated_at: string;
   total_zones: number;
   currently_shedding: number;
+  shedding_zone_ids?: string[];
+  shedding_delegations?: string[];
   zones: CitizenZone[];
 }
 

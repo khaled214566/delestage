@@ -133,6 +133,19 @@ def main():
     ar_to_csv = {norm_ar(d['name1']): d for d in delegations}
     fr_to_csv = {norm_fr(d['name']): d for d in delegations}
 
+    # Load MW load data
+    load_by_pcode = {}
+    try:
+        with open('backend/data/tunisia_load_data.csv', 'r', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                load_by_pcode[row['pcode']] = {
+                    'managed_load_mw': float(row['managed_load_mw']),
+                    'peak_load_mw': float(row['peak_load_mw']),
+                    'population_2024': int(row['population_2024']),
+                }
+    except Exception as e:
+        print(f"Warning: Could not load tunisia_load_data.csv: {e}")
+
     # Load ADM2 GeoJSON
     with open('backend/data/geoBoundaries_ADM2.geojson', 'r', encoding='utf-8') as f:
         adm2 = json.load(f)
@@ -178,6 +191,12 @@ def main():
         bcc_id, bcc_name = GOV_TO_BCC.get(gov_name, ('BCC1', 'BCC TUNIS'))
         subzones = SUBZONES_SAMPLE.get(zone_fr, [f"{zone_fr} Centre", f"Secteur {zone_fr}"])
 
+        # Look up MW and population from load data
+        load_info = load_by_pcode.get(pcode, {})
+        managed_mw = load_info.get("managed_load_mw", 5.0)
+        peak_mw = load_info.get("peak_load_mw", 12.0)
+        pop = load_info.get("population_2024", 25000)
+
         new_props = {
             "id": pcode,
             "name": zone_fr,
@@ -188,6 +207,9 @@ def main():
             "bcc_name": bcc_name,
             "center": [center_y, center_x],
             "subzones": subzones,
+            "managed_load_mw": managed_mw,
+            "estimated_peak_mw": peak_mw,
+            "population_2024": pop,
             "shape_id": f['properties'].get('shapeID', '')
         }
 

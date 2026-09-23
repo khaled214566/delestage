@@ -50,6 +50,9 @@ interface ZoneFeatureMeta {
   bcc_name: string;
   center: [number, number]; // [lat, lng]
   subzones: string[];
+  managed_load_mw?: number;
+  estimated_peak_mw?: number;
+  population_2024?: number;
 }
 
 interface MapPoint {
@@ -81,7 +84,12 @@ function dotIcon(color: string): google.maps.Symbol {
   };
 }
 
-export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
+interface CitizenMapProps {
+  zones: CitizenZone[];
+  sheddingZoneIds?: string[];
+}
+
+export default function CitizenMap({ zones, sheddingZoneIds = [] }: CitizenMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -95,12 +103,32 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
-  // Helper to determine if a zone or its parent district is in shedding
+  // Helper to determine if an exact delegation is currently in shedding
   const isZoneShedding = (meta: ZoneFeatureMeta): boolean => {
-    const match = zones.find(
-      z => z.zone_id === meta.bcc_id || (z.governorates && z.governorates.toLowerCase().includes(meta.governorate.toLowerCase()))
-    );
-    return match?.status === 'SHEDDING';
+    // 1. Direct match with active shedding zone IDs (from API)
+    if (sheddingZoneIds && sheddingZoneIds.length > 0) {
+      const cleanId = meta.id.toUpperCase();
+      const cleanName = meta.name.toLowerCase();
+      const match = sheddingZoneIds.some(zid => {
+        const z = zid.toUpperCase();
+        return z === cleanId || z.endsWith(cleanId) || cleanId.endsWith(z) || cleanName === zid.toLowerCase();
+      });
+      if (match) return true;
+    }
+
+    // 2. Check if any BCC zone lists this delegation as affected
+    for (const z of zones) {
+      if (z.status === 'SHEDDING') {
+        if (z.affected_zone_ids?.some(zid => zid.toUpperCase() === meta.id.toUpperCase())) {
+          return true;
+        }
+        if (z.affected_delegations?.some(d => d.toLowerCase().includes(meta.name.toLowerCase()) || meta.name.toLowerCase().includes(d.toLowerCase()))) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   };
 
   // 1. Initialize Map
@@ -196,6 +224,10 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
           const subzones = (event.feature.getProperty('subzones') as string[]) || [];
           const center = (event.feature.getProperty('center') as [number, number]) || [35.0, 10.0];
 
+          const managedMw = Number(event.feature.getProperty('managed_load_mw') || 0);
+          const peakMw = Number(event.feature.getProperty('estimated_peak_mw') || 0);
+          const pop = Number(event.feature.getProperty('population_2024') || 0);
+
           const meta: ZoneFeatureMeta = {
             id,
             name,
@@ -206,6 +238,9 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
             bcc_name: bcc,
             center,
             subzones,
+            managed_load_mw: managedMw,
+            estimated_peak_mw: peakMw,
+            population_2024: pop,
           };
 
           const isShedding = isZoneShedding(meta);
@@ -230,13 +265,18 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
                   </div>
                 </div>
               </div>
+
+              <div style="font-size:0.78rem;color:#4a5568;margin-top:6px;padding:5px 8px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;display:flex;justify-content:space-between;">
+                <span>⚡ Puissance estimée : <strong>${peakMw > 0 ? peakMw.toFixed(1) : managedMw.toFixed(1)} MW</strong></span>
+                ${pop > 0 ? `<span>👥 <strong>${pop.toLocaleString('fr-FR')}</strong> hab.</span>` : ''}
+              </div>
               
               <div style="margin-top:0.6rem;padding:0.4rem 0.6rem;border-radius:6px;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:6px;background:${isShedding ? '#fff5f5' : '#f0fff4'};color:${isShedding ? COLOR_SHEDDING : COLOR_NORMAL};border:1px solid ${isShedding ? '#feb2b2' : '#9ae6b4'}">
                 <span>${isShedding ? '⚡ Coupure en cours (Délestage)' : '✅ Alimentation électrique normale'}</span>
               </div>
 
               ${isShedding ? `
-                <div style="font-size:0.78rem;color:#742a2a;margin-top:0.4rem;background:#fffaf0;padding:4px 8px;border-radius:4px;border-left:3px solid #dd6b20;">
+                <div style="font-size:0.78rem;color:#742a2a;margin-top:0.4rem;background:#fffaf0;padding:5px 8px;border-radius:4px;border-left:3px solid #dd6b20;">
                   ⏱️ Rétablissement estimé : <strong>Sous 45 minutes</strong> (rotation tournante)
                 </div>` : ''}
 
@@ -257,7 +297,7 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sheddingZoneIds]);
 
   // 2. Dynamic styling for Zone Border Polygons
   useEffect(() => {
@@ -274,10 +314,19 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
       const isHovered = feature.getProperty('isHovered');
       const isSelected = selectedZoneId === id;
 
-      const matchingZone = zones.find(
-        z => z.zone_id === bccId || (z.governorates && z.governorates.toLowerCase().includes((gov || '').toLowerCase()))
-      );
-      const isShedding = matchingZone?.status === 'SHEDDING';
+      const meta: ZoneFeatureMeta = {
+        id,
+        name: String(feature.getProperty('name') || ''),
+        name_ar: String(feature.getProperty('name_ar') || ''),
+        governorate: gov,
+        governorate_ar: '',
+        bcc_id: bccId,
+        bcc_name: String(feature.getProperty('bcc_name') || ''),
+        center: [0, 0],
+        subzones: [],
+      };
+
+      const isShedding = isZoneShedding(meta);
 
       if (isSelected) {
         return {
@@ -310,7 +359,7 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
         cursor: 'pointer',
       };
     });
-  }, [zones, status, showBorders, selectedZoneId]);
+  }, [zones, sheddingZoneIds, status, showBorders, selectedZoneId]);
 
   // 3. Optional Regional Markers
   useEffect(() => {
