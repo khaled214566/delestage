@@ -34,8 +34,6 @@ export default function CitizenPage() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 10000); // 10s auto-refresh
-    return () => clearInterval(interval);
   }, [load]);
 
   const filteredZones = useMemo(() => {
@@ -80,6 +78,16 @@ export default function CitizenPage() {
         </div>
         <div className="citizen-actions">
           <span className="live-badge">● Direct</span>
+          <button
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="btn-operator-login"
+            style={{ background: '#f7fafc', color: '#2d3748', border: '1px solid #cbd5e0', cursor: 'pointer' }}
+            title="Rafraîchir manuellement les données"
+          >
+            🔄 {loading ? 'Chargement...' : 'Actualiser'}
+          </button>
           <Link to="/login" className="btn-operator-login">Accès Opérateur</Link>
         </div>
       </header>
