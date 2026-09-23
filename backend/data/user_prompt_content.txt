@@ -1,0 +1,6 @@
+<USER_REQUEST>
+can you implement this data to limit each zone borders?
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-23T20:48:15+01:00.
+</ADDITIONAL_METADATA>
