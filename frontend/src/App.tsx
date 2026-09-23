@@ -1,56 +1,44 @@
-﻿import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { checkHealth } from './api/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import RequireAuth from './components/RequireAuth';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+
+import DeficitPage from './pages/DeficitPage';
+import OrdersPage from './pages/OrdersPage';
+import OrderDetailPage from './pages/OrderDetailPage';
+import MonitoringPage from './pages/MonitoringPage';
+import BccPage from './pages/BccPage';
+import AdminPage from './pages/AdminPage';
+import CitizenPage from './pages/CitizenPage';
+import SimulatorPage from './pages/SimulatorPage';
+import EvaluationPage from './pages/EvaluationPage';
 import './App.css';
 
 const queryClient = new QueryClient();
 
-function HealthCheck() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['health'],
-    queryFn: checkHealth,
-    refetchInterval: 30000,
-  });
-
-  if (isLoading) return <div className="status loading">Connecting to API...</div>;
-  if (error) return <div className="status error">❌ API unreachable</div>;
-
-  return (
-    <div className="status ok">
-      ✅ API connected — v{data.version} ({data.environment})
-    </div>
-  );
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="app">
-        <header>
-          <h1>🔌 Plateforme Nationale de Délestage</h1>
-          <p>National Intelligent Load Shedding Management Platform</p>
-        </header>
-        <main>
-          <HealthCheck />
-          <div className="info">
-            <h2>Modules</h2>
-            <ul>
-              <li>✅ M0 — Project Setup</li>
-              <li>⬜ M1 — Database Schema & Seed Data</li>
-              <li>⬜ M2 — Authentication, Roles & Audit</li>
-              <li>⬜ M3 — Deficit Computation</li>
-              <li>⬜ M4 — Shed Orders</li>
-              <li>⬜ M5 — Allocation & Feeder Selection</li>
-              <li>⬜ M6 — Real-time Monitoring</li>
-              <li>⬜ M7 — BCC Execution</li>
-              <li>⬜ M8 — Rotation Engine</li>
-              <li>⬜ M9 — Administration & Audit View</li>
-              <li>⬜ M10 — Citizen Platform</li>
-              <li>⬜ M11 — Demo Simulator</li>
-              <li>⬜ M12 — Evaluation & Tests</li>
-            </ul>
-          </div>
-        </main>
-      </div>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/citizen" element={<CitizenPage />} />
+            <Route element={<RequireAuth><Layout /></RequireAuth>}>
+              <Route index element={<DeficitPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/:orderId" element={<OrderDetailPage />} />
+              <Route path="monitoring" element={<MonitoringPage />} />
+              <Route path="bcc" element={<BccPage />} />
+              <Route path="admin" element={<AdminPage />} />
+              <Route path="simulator" element={<SimulatorPage />} />
+              <Route path="evaluation" element={<EvaluationPage />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 }
