@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getCitizenStatus, type CitizenStatusResponse, type CitizenZone } from '../api/client';
 import { Link } from 'react-router-dom';
+import CitizenMap from '../components/CitizenMap';
 
 type FilterType = 'ALL' | 'SHEDDING' | 'NORMAL' | 'NORD' | 'SUD';
 
@@ -166,6 +167,12 @@ export default function CitizenPage() {
             Sud (3)
           </button>
         </div>
+      </div>
+
+      {/* Network Map */}
+      <div className="citizen-map-section">
+        <h2 className="citizen-section-title">Carte du réseau</h2>
+        <CitizenMap zones={data?.zones ?? []} />
       </div>
 
       {/* Zones Grid */}
