@@ -12,9 +12,6 @@ dist
 dist-ssr
 *.local
 
-# Local secrets (Google Maps API key, etc.) — never commit
-.env
-.env.local
 
 # Editor directories and files
 .vscode/*
