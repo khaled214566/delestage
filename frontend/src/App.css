@@ -3941,6 +3941,72 @@ header p {
   cursor: pointer;
 }
 
+.citizen-map-section {
+  max-width: 1600px;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+}
+
+.citizen-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 0.75rem;
+}
+
+.citizen-map-wrapper {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.citizen-map {
+  width: 100%;
+  height: 420px;
+}
+
+.citizen-map-placeholder {
+  width: 100%;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem;
+  color: #718096;
+  font-size: 0.9rem;
+  background: #f7fafc;
+}
+
+.citizen-map-legend {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.citizen-map-legend .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+}
+
+.citizen-map-legend .dot-green { background: #38a169; }
+.citizen-map-legend .dot-red { background: #e53e3e; }
+
 .citizen-zones-grid {
   max-width: 1600px;
   margin: 0 auto 3rem;
