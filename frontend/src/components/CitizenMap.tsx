@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import type { CitizenZone } from '../api/client';
 import { GOVERNORATE_COORDINATES, TUNISIA_CENTER, TUNISIA_DEFAULT_ZOOM } from '../data/governorateCoordinates';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
-const COLOR_NORMAL = '#38a169';   // matches the existing "Alimentation Normale" green
-const COLOR_SHEDDING = '#e53e3e'; // matches the existing live/alert red
+const COLOR_NORMAL = '#38a169';       // "Alimentation Normale" green
+const COLOR_SHEDDING = '#e53e3e';     // Live alert red
+const COLOR_BORDER_NORMAL = '#276749';
+const COLOR_BORDER_SHED = '#9b2c2c';
+const COLOR_HOVER = '#2b6cb0';        // Vibrant blue on hover/select
 
-// Muted, low-contrast basemap so the red/green status dots stay the focal point.
+// Low-contrast clean basemap so borders and colors remain the focal point
 const MAP_STYLE: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry', stylers: [{ color: '#f5f7fa' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#718096' }] },
+  { elementType: 'geometry', stylers: [{ color: '#f8fafc' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#64748b' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#cbd5e0' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#bee3f8' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#cbd5e1' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#bae6fd' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#e2e8f0' }] },
   { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
@@ -28,11 +31,6 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 
   scriptLoadingPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    // No `loading=async`: that switches Google's loader to the newer dynamic
-    // library pattern, where google.maps.Map isn't guaranteed to exist yet when
-    // this script's onload fires (you'd need google.maps.importLibrary() first).
-    // We want the classic synchronous loader so google.maps.* is fully populated
-    // by the time onload runs, matching the plain `new google.maps.Map(...)` below.
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
     script.onload = () => resolve();
@@ -42,13 +40,25 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
   return scriptLoadingPromise;
 }
 
+interface ZoneFeatureMeta {
+  id: string;
+  name: string;
+  name_ar: string;
+  governorate: string;
+  governorate_ar: string;
+  bcc_id: string;
+  bcc_name: string;
+  center: [number, number]; // [lat, lng]
+  subzones: string[];
+}
+
 interface MapPoint {
   governorate: string;
   position: [number, number];
   zone: CitizenZone;
 }
 
-function buildPoints(zones: CitizenZone[]): MapPoint[] {
+function buildGovernoratePoints(zones: CitizenZone[]): MapPoint[] {
   const points: MapPoint[] = [];
   for (const zone of zones) {
     const names = (zone.governorates || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -60,8 +70,6 @@ function buildPoints(zones: CitizenZone[]): MapPoint[] {
   return points;
 }
 
-// Small fixed-size colored dot — stays a "pixel" at any zoom level instead of
-// scaling with the map's geographic distance (which a Circle overlay would do).
 function dotIcon(color: string): google.maps.Symbol {
   return {
     path: google.maps.SymbolPath.CIRCLE,
@@ -69,7 +77,7 @@ function dotIcon(color: string): google.maps.Symbol {
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 1.5,
-    scale: 7,
+    scale: 6,
   };
 }
 
@@ -78,23 +86,40 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'no-key'>('loading');
+  const featuresRef = useRef<Map<string, google.maps.Data.Feature>>(new Map());
 
-  // Load the script and create the map once.
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'no-key'>('loading');
+  const [zoneFeatures, setZoneFeatures] = useState<ZoneFeatureMeta[]>([]);
+  const [showBorders, setShowBorders] = useState<boolean>(true);
+  const [showMarkers, setShowMarkers] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+
+  // Helper to determine if a zone or its parent district is in shedding
+  const isZoneShedding = (meta: ZoneFeatureMeta): boolean => {
+    const match = zones.find(
+      z => z.zone_id === meta.bcc_id || (z.governorates && z.governorates.toLowerCase().includes(meta.governorate.toLowerCase()))
+    );
+    return match?.status === 'SHEDDING';
+  };
+
+  // 1. Initialize Map
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) {
       setStatus('no-key');
       return;
     }
     let cancelled = false;
+
     loadGoogleMaps(GOOGLE_MAPS_API_KEY)
       .then(() => {
         if (cancelled || !containerRef.current) return;
-        mapRef.current = new google.maps.Map(containerRef.current, {
+
+        const map = new google.maps.Map(containerRef.current, {
           center: { lat: TUNISIA_CENTER[0], lng: TUNISIA_CENTER[1] },
           zoom: TUNISIA_DEFAULT_ZOOM,
           minZoom: 6,
-          maxZoom: 14,
+          maxZoom: 16,
           styles: MAP_STYLE,
           streetViewControl: false,
           mapTypeControl: false,
@@ -104,22 +129,200 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
             strictBounds: false,
           },
         });
-        infoWindowRef.current = new google.maps.InfoWindow();
-        setStatus('ready');
+
+        const infoWindow = new google.maps.InfoWindow();
+        mapRef.current = map;
+        infoWindowRef.current = infoWindow;
+
+        // Load 264 Tunisian Zone Boundaries GeoJSON
+        fetch('/data/tunisia_zones.geojson')
+          .then(res => res.json())
+          .then(geojson => {
+            if (cancelled) return;
+            const parsedFeatures = map.data.addGeoJson(geojson);
+            const metas: ZoneFeatureMeta[] = [];
+
+            parsedFeatures.forEach((feat: google.maps.Data.Feature) => {
+              const id = feat.getProperty('id') as string;
+              const name = feat.getProperty('name') as string;
+              const name_ar = feat.getProperty('name_ar') as string;
+              const governorate = feat.getProperty('governorate') as string;
+              const governorate_ar = feat.getProperty('governorate_ar') as string;
+              const bcc_id = feat.getProperty('bcc_id') as string;
+              const bcc_name = feat.getProperty('bcc_name') as string;
+              const center = feat.getProperty('center') as [number, number];
+              const subzones = (feat.getProperty('subzones') as string[]) || [];
+
+              const meta: ZoneFeatureMeta = {
+                id,
+                name,
+                name_ar,
+                governorate,
+                governorate_ar,
+                bcc_id,
+                bcc_name,
+                center,
+                subzones,
+              };
+
+              metas.push(meta);
+              featuresRef.current.set(id, feat);
+            });
+
+            setZoneFeatures(metas);
+            setStatus('ready');
+          })
+          .catch(err => {
+            console.error('Failed to load tunisia_zones.geojson', err);
+            setStatus('ready'); // Still show base map even if geojson fails
+          });
+
+        // Hover events
+        map.data.addListener('mouseover', (event: google.maps.Data.MouseEvent) => {
+          event.feature.setProperty('isHovered', true);
+        });
+
+        map.data.addListener('mouseout', (event: google.maps.Data.MouseEvent) => {
+          event.feature.setProperty('isHovered', false);
+        });
+
+        // Click event on zone polygon
+        map.data.addListener('click', (event: google.maps.Data.MouseEvent) => {
+          const id = String(event.feature.getProperty('id') || '');
+          const name = String(event.feature.getProperty('name') || '');
+          const name_ar = String(event.feature.getProperty('name_ar') || '');
+          const gov = String(event.feature.getProperty('governorate') || '');
+          const bcc = String(event.feature.getProperty('bcc_name') || '');
+          const subzones = (event.feature.getProperty('subzones') as string[]) || [];
+          const center = (event.feature.getProperty('center') as [number, number]) || [35.0, 10.0];
+
+          const meta: ZoneFeatureMeta = {
+            id,
+            name,
+            name_ar,
+            governorate: gov,
+            governorate_ar: '',
+            bcc_id: '',
+            bcc_name: bcc,
+            center,
+            subzones,
+          };
+
+          const isShedding = isZoneShedding(meta);
+          setSelectedZoneId(id);
+
+          const subzonesHtml = subzones.length > 0
+            ? `<div style="margin-top:0.5rem;font-size:0.75rem;color:#4a5568;line-height:1.35;">
+                 <strong>Secteurs & Quartiers :</strong><br/>
+                 <span style="color:#718096">${subzones.join(', ')}</span>
+               </div>`
+            : '';
+
+          const html = `
+            <div style="font-family:inherit;min-width:240px;max-width:320px;padding:2px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                <div>
+                  <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#1a202c;">
+                    ${name} <span style="font-size:0.9rem;font-weight:500;color:#718096">(${name_ar || ''})</span>
+                  </h3>
+                  <div style="font-size:0.78rem;color:#718096;margin-top:2px;">
+                    District : <strong>${gov}</strong> • ${bcc}
+                  </div>
+                </div>
+              </div>
+              
+              <div style="margin-top:0.6rem;padding:0.4rem 0.6rem;border-radius:6px;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:6px;background:${isShedding ? '#fff5f5' : '#f0fff4'};color:${isShedding ? COLOR_SHEDDING : COLOR_NORMAL};border:1px solid ${isShedding ? '#feb2b2' : '#9ae6b4'}">
+                <span>${isShedding ? '⚡ Coupure en cours (Délestage)' : '✅ Alimentation électrique normale'}</span>
+              </div>
+
+              ${isShedding ? `
+                <div style="font-size:0.78rem;color:#742a2a;margin-top:0.4rem;background:#fffaf0;padding:4px 8px;border-radius:4px;border-left:3px solid #dd6b20;">
+                  ⏱️ Rétablissement estimé : <strong>Sous 45 minutes</strong> (rotation tournante)
+                </div>` : ''}
+
+              ${subzonesHtml}
+            </div>
+          `;
+
+          infoWindow.setContent(html);
+          infoWindow.setPosition(event.latLng);
+          infoWindow.open(map);
+        });
       })
-      .catch((err) => {
+      .catch(err => {
         console.error('CitizenMap: failed to load/init Google Maps.', err);
         if (!cancelled) setStatus('error');
       });
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Redraw markers whenever zone statuses change (e.g. the 10s auto-refresh).
+  // 2. Dynamic styling for Zone Border Polygons
+  useEffect(() => {
+    if (status !== 'ready' || !mapRef.current) return;
+
+    mapRef.current.data.setStyle((feature: google.maps.Data.Feature) => {
+      if (!showBorders) {
+        return { visible: false };
+      }
+
+      const id = feature.getProperty('id') as string;
+      const gov = feature.getProperty('governorate') as string;
+      const bccId = feature.getProperty('bcc_id') as string;
+      const isHovered = feature.getProperty('isHovered');
+      const isSelected = selectedZoneId === id;
+
+      const matchingZone = zones.find(
+        z => z.zone_id === bccId || (z.governorates && z.governorates.toLowerCase().includes((gov || '').toLowerCase()))
+      );
+      const isShedding = matchingZone?.status === 'SHEDDING';
+
+      if (isSelected) {
+        return {
+          fillColor: isShedding ? COLOR_SHEDDING : COLOR_HOVER,
+          fillOpacity: 0.5,
+          strokeColor: '#1a365d',
+          strokeWeight: 3.5,
+          zIndex: 20,
+          cursor: 'pointer',
+        };
+      }
+
+      if (isShedding) {
+        return {
+          fillColor: COLOR_SHEDDING,
+          fillOpacity: isHovered ? 0.45 : 0.28,
+          strokeColor: isHovered ? '#742a2a' : COLOR_BORDER_SHED,
+          strokeWeight: isHovered ? 2.5 : 1.2,
+          zIndex: isHovered ? 15 : 2,
+          cursor: 'pointer',
+        };
+      }
+
+      return {
+        fillColor: isHovered ? '#319795' : COLOR_NORMAL,
+        fillOpacity: isHovered ? 0.3 : 0.12,
+        strokeColor: isHovered ? COLOR_HOVER : COLOR_BORDER_NORMAL,
+        strokeWeight: isHovered ? 2.5 : 0.8,
+        zIndex: isHovered ? 10 : 1,
+        cursor: 'pointer',
+      };
+    });
+  }, [zones, status, showBorders, selectedZoneId]);
+
+  // 3. Optional Regional Markers
   useEffect(() => {
     if (status !== 'ready' || !mapRef.current) return;
 
     markersRef.current.forEach(m => m.setMap(null));
-    markersRef.current = buildPoints(zones).map(point => {
+    if (!showMarkers) {
+      markersRef.current = [];
+      return;
+    }
+
+    markersRef.current = buildGovernoratePoints(zones).map(point => {
       const isShedding = point.zone.status === 'SHEDDING';
       const marker = new google.maps.Marker({
         position: { lat: point.position[0], lng: point.position[1] },
@@ -127,8 +330,8 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
         icon: dotIcon(isShedding ? COLOR_SHEDDING : COLOR_NORMAL),
         title: point.governorate,
       });
+
       marker.addListener('click', () => {
-        const ev = point.zone.events[0];
         const html = `
           <div style="font-family:inherit;min-width:200px">
             <strong style="font-size:0.95rem">${point.governorate}</strong>
@@ -136,17 +339,62 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
             <div style="font-size:0.85rem;font-weight:600;color:${isShedding ? COLOR_SHEDDING : COLOR_NORMAL}">
               ${isShedding ? '⚡ Coupure en cours' : '✅ Alimentation normale'}
             </div>
-            ${isShedding && ev ? `
-              <div style="font-size:0.78rem;color:#4a5568;margin-top:0.35rem">
-                Rétablissement estimé : ${ev.estimated_end ? new Date(ev.estimated_end).toLocaleTimeString('fr-FR') : 'Sous 45 min'}
-              </div>` : ''}
           </div>`;
         infoWindowRef.current?.setContent(html);
         infoWindowRef.current?.open({ map: mapRef.current!, anchor: marker });
       });
+
       return marker;
     });
-  }, [zones, status]);
+  }, [zones, status, showMarkers]);
+
+  // Filtered search suggestions
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim() || zoneFeatures.length === 0) return [];
+    const q = searchQuery.toLowerCase().trim();
+    return zoneFeatures
+      .filter(z =>
+        z.name.toLowerCase().includes(q) ||
+        z.name_ar.includes(q) ||
+        z.governorate.toLowerCase().includes(q) ||
+        z.subzones.some(s => s.toLowerCase().includes(q))
+      )
+      .slice(0, 6);
+  }, [searchQuery, zoneFeatures]);
+
+  // Zoom to a selected zone
+  const handleSelectZone = (meta: ZoneFeatureMeta) => {
+    setSelectedZoneId(meta.id);
+    setSearchQuery('');
+
+    if (mapRef.current && meta.center) {
+      mapRef.current.panTo({ lat: meta.center[0], lng: meta.center[1] });
+      mapRef.current.setZoom(12);
+
+      const isShedding = isZoneShedding(meta);
+      const html = `
+        <div style="font-family:inherit;min-width:240px;padding:2px;">
+          <h3 style="margin:0;font-size:1.05rem;font-weight:700;">${meta.name} (${meta.name_ar})</h3>
+          <div style="font-size:0.8rem;color:#718096;margin:3px 0 6px;">
+            District : <strong>${meta.governorate}</strong> • ${meta.bcc_name}
+          </div>
+          <div style="padding:4px 8px;border-radius:4px;font-size:0.82rem;font-weight:600;background:${isShedding ? '#fff5f5' : '#f0fff4'};color:${isShedding ? COLOR_SHEDDING : COLOR_NORMAL};border:1px solid ${isShedding ? '#feb2b2' : '#9ae6b4'}">
+            ${isShedding ? '⚡ Coupure en cours' : '✅ Alimentation normale'}
+          </div>
+          ${meta.subzones.length > 0 ? `
+            <div style="margin-top:6px;font-size:0.75rem;color:#718096;">
+              <strong>Secteurs :</strong> ${meta.subzones.slice(0, 5).join(', ')}...
+            </div>` : ''}
+        </div>
+      `;
+      infoWindowRef.current?.setContent(html);
+      infoWindowRef.current?.setPosition({ lat: meta.center[0], lng: meta.center[1] });
+      infoWindowRef.current?.open(mapRef.current);
+    }
+  };
+
+  const sheddingCount = zoneFeatures.filter(z => isZoneShedding(z)).length;
+  const normalCount = zoneFeatures.length - sheddingCount;
 
   if (status === 'no-key') {
     return (
@@ -161,12 +409,123 @@ export default function CitizenMap({ zones }: { zones: CitizenZone[] }) {
 
   return (
     <div className="citizen-map-wrapper">
-      {status === 'loading' && <div className="citizen-map-placeholder">🗺️ Chargement de la carte…</div>}
-      <div ref={containerRef} className="citizen-map" style={{ display: status === 'ready' ? 'block' : 'none' }} />
+      {/* Search & Layer Toolbar */}
+      <div style={{
+        padding: '0.75rem 1rem',
+        background: '#ffffff',
+        borderBottom: '1px solid #e2e8f0',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '0.75rem',
+      }}>
+        {/* Search input with live suggestion dropdown */}
+        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: '420px' }}>
+          <input
+            type="text"
+            placeholder="🔍 Trouver une zone (ex: La Marsa, Carthage, Sfax, Sousse...)"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.45rem 0.85rem',
+              fontSize: '0.88rem',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              outline: 'none',
+            }}
+          />
+          {searchResults.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: '4px',
+              background: '#fff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              zIndex: 100,
+              maxHeight: '260px',
+              overflowY: 'auto',
+            }}>
+              {searchResults.map(z => {
+                const shedding = isZoneShedding(z);
+                return (
+                  <div
+                    key={z.id}
+                    onClick={() => handleSelectZone(z)}
+                    style={{
+                      padding: '0.5rem 0.8rem',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f1f5f9',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <div>
+                      <strong>{z.name}</strong> <span style={{ color: '#64748b' }}>({z.name_ar})</span>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{z.governorate} • {z.bcc_name}</div>
+                    </div>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: shedding ? '#fee2e2' : '#dcfce7',
+                      color: shedding ? '#991b1b' : '#166534',
+                      fontWeight: 600,
+                    }}>
+                      {shedding ? '⚡ Coupure' : '✅ Normal'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Layer Toggles & Stats */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: '0.82rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={showBorders}
+              onChange={e => setShowBorders(e.target.checked)}
+            />
+            <span>Délimitations frontalières (264 zones)</span>
+          </label>
+          <label style={{ fontSize: '0.82rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={showMarkers}
+              onChange={e => setShowMarkers(e.target.checked)}
+            />
+            <span>Repères chefs-lieux</span>
+          </label>
+        </div>
+      </div>
+
+      {status === 'loading' && <div className="citizen-map-placeholder">🗺️ Chargement du découpage territorial tunisien…</div>}
+
+      <div
+        ref={containerRef}
+        className="citizen-map"
+        style={{ display: status === 'ready' ? 'block' : 'none', height: '480px' }}
+      />
+
       {status === 'ready' && (
-        <div className="citizen-map-legend">
-          <span><i className="dot dot-green" /> Alimentation normale</span>
-          <span><i className="dot dot-red" /> Coupure en cours</span>
+        <div className="citizen-map-legend" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <span><i className="dot dot-green" /> Alimentation normale ({normalCount})</span>
+          <span><i className="dot dot-red" /> Zone en coupure ({sheddingCount})</span>
+          <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+            💡 Cliquez sur n'importe quelle zone pour voir ses quartiers et son statut
+          </span>
         </div>
       )}
     </div>
