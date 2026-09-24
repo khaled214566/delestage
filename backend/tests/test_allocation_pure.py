@@ -262,3 +262,76 @@ def test_greedy_deterministic():
     res1 = select_feeders(target_mw=40.0, eligible=feeders, max_overshoot_pct=0.10)
     res2 = select_feeders(target_mw=40.0, eligible=feeders, max_overshoot_pct=0.10)
     assert [f.feeder_id for f in res1.selected] == [f.feeder_id for f in res2.selected]
+
+
+def test_greedy_p5_selected_before_higher_priority():
+    # P5 feeder has been shed before (score = 50.0)
+    # P3 feeder is fresh (score = 0.0)
+    # P5 must be selected FIRST before P3 despite having a higher fairness score!
+    p5_feeder = FeederCandidate(
+        feeder_id="F-P5",
+        name="Feeder-P5",
+        bcc_id="BCC1",
+        avg_mw=20.0,
+        priority=PriorityLevel.P5,
+        cumulative_minutes=50.0,
+        priority_weight=1,
+        fairness_score=50.0,
+        zone_id="Z-1",
+    )
+    p3_feeder = FeederCandidate(
+        feeder_id="F-P3",
+        name="Feeder-P3",
+        bcc_id="BCC1",
+        avg_mw=20.0,
+        priority=PriorityLevel.P3,
+        cumulative_minutes=0.0,
+        priority_weight=3,
+        fairness_score=0.0,
+        zone_id="Z-2",
+    )
+    result = select_feeders(target_mw=20.0, eligible=[p3_feeder, p5_feeder])
+    assert len(result.selected) == 1
+    assert result.selected[0].feeder_id == "F-P5"
+
+
+def test_greedy_cascading_when_p5_insufficient():
+    # P5 has 15 MW, but target is 30 MW. Must select P5 first, then cascade to P4.
+    p5 = FeederCandidate(
+        feeder_id="F-P5",
+        name="Feeder-P5",
+        bcc_id="BCC1",
+        avg_mw=15.0,
+        priority=PriorityLevel.P5,
+        cumulative_minutes=10.0,
+        priority_weight=1,
+        fairness_score=10.0,
+        zone_id="Z-1",
+    )
+    p4 = FeederCandidate(
+        feeder_id="F-P4",
+        name="Feeder-P4",
+        bcc_id="BCC1",
+        avg_mw=15.0,
+        priority=PriorityLevel.P4,
+        cumulative_minutes=0.0,
+        priority_weight=2,
+        fairness_score=0.0,
+        zone_id="Z-2",
+    )
+    p3 = FeederCandidate(
+        feeder_id="F-P3",
+        name="Feeder-P3",
+        bcc_id="BCC1",
+        avg_mw=15.0,
+        priority=PriorityLevel.P3,
+        cumulative_minutes=0.0,
+        priority_weight=3,
+        fairness_score=0.0,
+        zone_id="Z-3",
+    )
+    result = select_feeders(target_mw=30.0, eligible=[p3, p4, p5])
+    assert len(result.selected) == 2
+    selected_ids = [f.feeder_id for f in result.selected]
+    assert selected_ids == ["F-P5", "F-P4"]
+

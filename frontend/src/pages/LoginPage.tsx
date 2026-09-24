@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import '../App.css';
 
@@ -80,6 +80,19 @@ export default function LoginPage() {
         <button type="submit" disabled={submitting}>
           {submitting ? 'Connexion en cours...' : 'Se connecter'}
         </button>
+
+        <div className="login-divider">
+          <span>ou</span>
+        </div>
+
+        <Link to="/citizen" className="btn-citizen-direct">
+          <span className="btn-citizen-icon">🗺️</span>
+          <div className="btn-citizen-text">
+            <strong>Accès Utilisateur / Public</strong>
+            <span>Consulter la carte du réseau en direct (sans connexion)</span>
+          </div>
+          <span className="btn-citizen-arrow">→</span>
+        </Link>
 
         <div className="demo-accounts-box">
           <span className="demo-title">Profils d'accès de test (Mot de passe : <code>delestage123</code>) :</span>

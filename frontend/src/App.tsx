@@ -12,7 +12,6 @@ import MonitoringPage from './pages/MonitoringPage';
 import BccPage from './pages/BccPage';
 import AdminPage from './pages/AdminPage';
 import CitizenPage from './pages/CitizenPage';
-import SimulatorPage from './pages/SimulatorPage';
 import EvaluationPage from './pages/EvaluationPage';
 import './App.css';
 
@@ -33,7 +32,6 @@ function App() {
               <Route path="monitoring" element={<MonitoringPage />} />
               <Route path="bcc" element={<BccPage />} />
               <Route path="admin" element={<AdminPage />} />
-              <Route path="simulator" element={<SimulatorPage />} />
               <Route path="evaluation" element={<EvaluationPage />} />
             </Route>
           </Routes>
