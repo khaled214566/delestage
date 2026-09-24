@@ -1,268 +1,502 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getCitizenStatus, type CitizenStatusResponse, type CitizenZone } from '../api/client';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  getCitizenHistory,
+  getCitizenSchedule,
+  getCitizenStatus,
+  type CitizenHistoryResponse,
+  type CitizenPlannedOutage,
+  type CitizenStatusResponse,
+} from '../api/client';
 import CitizenMap from '../components/CitizenMap';
+import { STATUS_META, type NetworkStatus } from '../config/mapConfig';
+import '../styles/citizen.css';
 
-type FilterType = 'ALL' | 'SHEDDING' | 'NORMAL' | 'NORD' | 'SUD';
+// ── Formatting helpers ──────────────────────────────────────────────────────
+const nf = (n: number) => n.toLocaleString('fr-FR');
 
-function normalizeText(str: string): string {
-  return (str || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
+const norm = (s: string) =>
+  s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+
+function hhmm(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (d.toDateString() === today.toDateString()) return "Aujourd'hui";
+  if (d.toDateString() === tomorrow.toDateString()) return 'Demain';
+  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+}
+
+function weekday(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { weekday: 'short' });
 }
 
 export default function CitizenPage() {
-  const [data, setData] = useState<CitizenStatusResponse | null>(null);
-  const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
+  const [status, setStatus] = useState<CitizenStatusResponse | null>(null);
+  const [statusAvailable, setStatusAvailable] = useState(true);
+  const [schedule, setSchedule] = useState<CitizenPlannedOutage[]>([]);
+  const [scheduleAvailable, setScheduleAvailable] = useState(true);
+  const [history, setHistory] = useState<CitizenHistoryResponse | null>(null);
+  const [historyAvailable, setHistoryAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [lastRefreshed, setLastRefreshed] = useState<string>('');
+  const [lastRefreshed, setLastRefreshed] = useState('');
+  const [plannedQuery, setPlannedQuery] = useState('');
 
   const load = useCallback(async () => {
-    try {
-      const res = await getCitizenStatus();
-      setData(res);
-      setLastRefreshed(new Date().toLocaleTimeString('fr-FR'));
-    } catch (err) {
-      console.error('Erreur chargement portail citoyen:', err);
-    } finally {
-      setLoading(false);
+    const [s, sch, hist] = await Promise.allSettled([
+      getCitizenStatus(),
+      getCitizenSchedule(),
+      getCitizenHistory(7),
+    ]);
+
+    if (s.status === 'fulfilled') {
+      setStatus(s.value);
+      setStatusAvailable(true);
+      setLastRefreshed(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
+    } else {
+      setStatusAvailable(false);
     }
+
+    if (sch.status === 'fulfilled') {
+      setSchedule(sch.value.outages);
+      setScheduleAvailable(true);
+    } else {
+      setScheduleAvailable(false);
+    }
+
+    if (hist.status === 'fulfilled') {
+      setHistory(hist.value);
+      setHistoryAvailable(true);
+    } else {
+      setHistoryAvailable(false);
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     load();
+    const timer = window.setInterval(load, 20000);
+    return () => window.clearInterval(timer);
   }, [load]);
 
-  const filteredZones = useMemo(() => {
-    if (!data?.zones) return [];
+  const zones = useMemo(() => status?.zones ?? [], [status]);
+  const sheddingCount = zones.filter(z => z.status === 'SHEDDING').length;
+  const totalZones = status?.total_zones ?? zones.length;
 
-    const query = normalizeText(search);
+  const activeEvents = useMemo(
+    () =>
+      zones
+        .filter(z => z.status === 'SHEDDING')
+        .flatMap(z => z.events.map(ev => ({ ev, zone: z })))
+        .sort((a, b) => (a.ev.started_at ?? '').localeCompare(b.ev.started_at ?? '')),
+    [zones],
+  );
 
-    return data.zones.filter((z: CitizenZone) => {
-      // 1. Status and Region Filter
-      if (activeFilter === 'SHEDDING' && z.status !== 'SHEDDING') return false;
-      if (activeFilter === 'NORMAL' && z.status !== 'NORMAL') return false;
-      if (activeFilter === 'NORD' && normalizeText(z.region || '') !== 'nord') return false;
-      if (activeFilter === 'SUD' && normalizeText(z.region || '') !== 'sud') return false;
+  const affectedMw = activeEvents.reduce((sum, { ev }) => sum + (ev.mw ?? 0), 0);
 
-      // 2. Search Text Query (fuzzy across all fields)
-      if (!query) return true;
+  const upcoming = useMemo(
+    () => [...schedule].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+    [schedule],
+  );
 
-      const searchableString = normalizeText(
-        `${z.zone_id} ${z.display_name} ${z.region || ''} ${z.governorates || ''} ${
-          z.status === 'SHEDDING' ? 'coupure delestage panne arret' : 'normal alimente stable sous tension'
-        }`
-      );
+  const affectedLocalities = useMemo(() => new Set(upcoming.map(o => o.locality)).size, [upcoming]);
 
-      // Check if all tokens in search query are found in searchableString
-      const tokens = query.split(/\s+/).filter(Boolean);
-      return tokens.every(token => searchableString.includes(token));
-    });
-  }, [data, search, activeFilter]);
+  const filteredUpcoming = useMemo(() => {
+    const q = norm(plannedQuery);
+    if (!q) return upcoming;
+    return upcoming.filter(o => norm(o.locality).includes(q) || norm(o.governorate).includes(q));
+  }, [upcoming, plannedQuery]);
 
-  const sheddingCount = data?.zones.filter(z => z.status === 'SHEDDING').length ?? 0;
-  const normalCount = data?.zones.filter(z => z.status === 'NORMAL').length ?? 0;
+  const upcomingByDay = useMemo(() => {
+    const groups: { day: string; items: CitizenPlannedOutage[] }[] = [];
+    const byLabel = new Map<string, number>();
+    for (const o of filteredUpcoming) {
+      const label = dayLabel(o.starts_at);
+      let gi = byLabel.get(label);
+      if (gi === undefined) {
+        gi = groups.length;
+        byLabel.set(label, gi);
+        groups.push({ day: label, items: [] });
+      }
+      groups[gi].items.push(o);
+    }
+    return groups;
+  }, [filteredUpcoming]);
+
+  const nationalStatus: NetworkStatus = !statusAvailable ? 'UNAVAILABLE' : sheddingCount > 0 ? 'ACTIVE' : 'NORMAL';
+  const nationalHeadline = !statusAvailable
+    ? 'État du réseau indisponible'
+    : sheddingCount > 0
+      ? 'Délestage en cours'
+      : 'Réseau alimenté normalement';
+
+  const maxDaily = Math.max(1, ...(history?.daily_series ?? []).map(d => d.duration_min));
+  const avgDuration =
+    history && history.total_events > 0 ? Math.round(history.total_duration_min / history.total_events) : 0;
 
   return (
-    <div className="citizen-portal">
-      <header className="citizen-header">
-        <div className="citizen-brand">
-          <span className="brand-logo">⚡ STEG</span>
-          <div>
-            <h1>Portail d'Information Citoyen</h1>
-            <p className="subtitle">État du réseau électrique &amp; Transparence des délestages tournants</p>
+    <div className="pc">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <header className="pc-header">
+        <div className="pc-header-inner">
+          <div className="pc-brand">
+            <span className="pc-brand-mark">STEG</span>
+            <div className="pc-brand-text">
+              <h1>État du réseau électrique</h1>
+              <p>Information publique sur les délestages — Tunisie</p>
+            </div>
           </div>
-        </div>
-        <div className="citizen-actions">
-          <span className="live-badge">● Direct</span>
-          <button
-            type="button"
-            onClick={() => load()}
-            disabled={loading}
-            className="btn-operator-login"
-            style={{ background: '#f7fafc', color: '#2d3748', border: '1px solid #cbd5e0', cursor: 'pointer' }}
-            title="Rafraîchir manuellement les données"
-          >
-            🔄 {loading ? 'Chargement...' : 'Actualiser'}
-          </button>
-          <Link to="/login" className="btn-operator-login">Accès Opérateur</Link>
+          <div className="pc-header-actions">
+            <span className="pc-live">En direct</span>
+            <button type="button" className="pc-btn" onClick={() => load()} disabled={loading}>
+              {loading ? 'Chargement…' : 'Actualiser'}
+            </button>
+            <Link to="/login" className="pc-btn pc-btn-primary">
+              Accès opérateur
+            </Link>
+          </div>
         </div>
       </header>
 
-      <div className="citizen-hero">
-        <div className="hero-stat-card">
-          <span className="hero-stat-label">Statut National</span>
-          <span className={`hero-stat-val ${sheddingCount > 0 ? 'text-amber' : 'text-green'}`}>
-            {loading ? '…' : sheddingCount > 0 ? 'Délestage en cours' : 'Réseau Normal'}
-          </span>
-          <span className="hero-stat-sub">
-            {sheddingCount} zone(s) activement délestée(s)
-          </span>
-        </div>
+      <div className="pc-container">
+        {/* ── National status ──────────────────────────────────── */}
+        <section
+          className="pc-statusbar"
+          style={{ borderLeft: `4px solid ${STATUS_META[nationalStatus].color}` }}
+          aria-label="État national du réseau"
+        >
+          <div className="pc-status-headline">
+            <span className="pc-status-dot" style={{ background: STATUS_META[nationalStatus].color }} />
+            <h2>{nationalHeadline}</h2>
+            <span className="pc-status-sub">
+              {lastRefreshed ? `Dernière mise à jour ${lastRefreshed}` : 'Mise à jour…'}
+              <br />
+              Actualisation automatique
+            </span>
+          </div>
+          <div className="pc-status-metrics">
+            <div className="pc-metric">
+              <span className="pc-metric-label">Zones en délestage</span>
+              <span className="pc-metric-value">{statusAvailable ? sheddingCount : '—'}</span>
+              <span className="pc-metric-sub">sur {totalZones} centres</span>
+            </div>
+            <div className="pc-metric">
+              <span className="pc-metric-label">Puissance concernée</span>
+              <span className="pc-metric-value">{statusAvailable ? `${nf(Math.round(affectedMw))}` : '—'}</span>
+              <span className="pc-metric-sub">MW — délestages en cours</span>
+            </div>
+            <div className="pc-metric">
+              <span className="pc-metric-label">Délestages programmés</span>
+              <span className="pc-metric-value">{scheduleAvailable ? upcoming.length : '—'}</span>
+              <span className="pc-metric-sub">confirmés à venir</span>
+            </div>
+            <div className="pc-metric">
+              <span className="pc-metric-label">Sur 7 jours</span>
+              <span className="pc-metric-value">{historyAvailable && history ? history.total_events : '—'}</span>
+              <span className="pc-metric-sub">
+                {historyAvailable && history ? `${nf(history.total_duration_min)} min cumulées` : 'historique'}
+              </span>
+            </div>
+          </div>
+        </section>
 
-        <div className="hero-stat-card">
-          <span className="hero-stat-label">Centres Surveillés</span>
-          <span className="hero-stat-val text-blue">{data?.total_zones ?? 7}</span>
-          <span className="hero-stat-sub">Couverture intégrale des 24 gouvernorats</span>
-        </div>
+        {/* ── Map (centrepiece) ────────────────────────────────── */}
+        <section className="pc-map-section" aria-label="Carte nationale">
+          <div className="pc-section-head">
+            <div>
+              <span className="pc-kicker">Carte nationale</span>
+              <h2 className="pc-section-title">État du réseau par localité</h2>
+            </div>
+            <span className="pc-section-meta">264 délégations · 7 centres BCC</span>
+          </div>
+          <CitizenMap
+            zones={zones}
+            sheddingZoneIds={status?.shedding_zone_ids}
+            scheduledOutages={upcoming}
+            generatedAt={status?.generated_at}
+            dataAvailable={statusAvailable}
+          />
+        </section>
 
-        <div className="hero-stat-card">
-          <span className="hero-stat-label">Dernière Mise à Jour</span>
-          <span className="hero-stat-val text-dark">{lastRefreshed || '…'}</span>
-          <span className="hero-stat-sub">Actualisation automatique toutes les 10s</span>
-        </div>
-      </div>
+        {/* ── Current outages (only when there are any) ────────── */}
+        {activeEvents.length > 0 && (
+          <section className="pc-section" aria-label="Délestages en cours">
+            <div className="pc-section-head">
+              <div>
+                <span className="pc-kicker">En cours</span>
+                <h2 className="pc-section-title">Délestages en cours</h2>
+              </div>
+              <span className="pc-section-meta">{activeEvents.length} localité(s)</span>
+            </div>
+            <div className="pc-card">
+              <div className="pc-outage-list">
+                {activeEvents.slice(0, 12).map(({ ev, zone }, i) => (
+                  <div className="pc-outage-row" key={`${zone.zone_id}-${ev.zone_id ?? i}`}>
+                    <div className="pc-outage-when">
+                      {hhmm(ev.started_at)}
+                      <small>depuis</small>
+                    </div>
+                    <div className="pc-outage-place">
+                      <div className="name">{ev.delegation ?? zone.display_name}</div>
+                      <div className="sub">
+                        {zone.region ? `${zone.region} · ` : ''}
+                        {zone.display_name}
+                      </div>
+                    </div>
+                    <div className="pc-outage-meta">
+                      <strong>{ev.duration_min} min</strong>
+                      {ev.mw != null ? `${nf(ev.mw)} MW` : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
-      {/* Enhanced Search and Filter Bar */}
-      <div className="citizen-search-section">
-        <div className="citizen-search-bar">
-          <div className="search-input-wrapper">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Rechercher votre ville ou gouvernorat (ex: Tunis, Nabeul, Sousse, Sfax, Ariana...)"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                className="btn-clear-search"
-                onClick={() => setSearch('')}
-                title="Effacer la recherche"
-              >
-                ✖
-              </button>
+        {/* ── Upcoming confirmed outages ───────────────────────── */}
+        <section className="pc-section" id="programmes" aria-label="Prochains délestages">
+          <div className="pc-section-head">
+            <div>
+              <span className="pc-kicker">À venir</span>
+              <h2 className="pc-section-title">Prochains délestages confirmés</h2>
+            </div>
+            <span className="pc-section-meta">
+              {scheduleAvailable && upcoming.length > 0
+                ? `${upcoming.length} créneau(x) · ${affectedLocalities} localité(s)`
+                : 'Délestages validés uniquement'}
+            </span>
+          </div>
+          <div className="pc-card pc-planned">
+            <p className="pc-planned-lead">
+              Vérifiez si votre localité est concernée par un délestage à venir. Seuls les délestages confirmés et
+              validés par les opérateurs sont affichés.
+            </p>
+
+            <div className="pc-filter">
+              <svg className="pc-filter-icon" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M9 3.5a5.5 5.5 0 1 0 3.39 9.83l3.64 3.64a1 1 0 0 0 1.42-1.42l-3.64-3.64A5.5 5.5 0 0 0 9 3.5Zm-3.5 5.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0Z" />
+              </svg>
+              <input
+                type="text"
+                className="pc-filter-input"
+                placeholder="Recherchez votre localité ou votre gouvernorat…"
+                value={plannedQuery}
+                onChange={e => setPlannedQuery(e.target.value)}
+                aria-label="Rechercher votre localité dans les délestages programmés"
+              />
+              {plannedQuery && (
+                <button
+                  type="button"
+                  className="pc-filter-clear"
+                  onClick={() => setPlannedQuery('')}
+                  aria-label="Effacer la recherche"
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+
+            {!scheduleAvailable ? (
+              <div className="pc-empty">
+                <strong>Données indisponibles</strong>
+                Le calendrier des délestages confirmés est momentanément indisponible.
+              </div>
+            ) : upcoming.length === 0 ? (
+              <div className="pc-empty pc-empty-ok">
+                <strong>Aucun délestage programmé</strong>
+                Aucun délestage n'est confirmé à venir. Seuls les délestages validés par les opérateurs sont affichés
+                ici.
+              </div>
+            ) : filteredUpcoming.length === 0 ? (
+              <div className="pc-empty pc-empty-ok">
+                <strong>Aucun délestage prévu pour « {plannedQuery.trim()} »</strong>
+                Aucun délestage confirmé ne concerne cette localité pour l'instant. Votre secteur n'est pas programmé
+                pour un délestage à venir.
+              </div>
+            ) : (
+              <div className="pc-day-groups">
+                {upcomingByDay.map(group => (
+                  <div className="pc-day-group" key={group.day}>
+                    <div className="pc-day-head">
+                      <span className="pc-day-label">{group.day}</span>
+                      <span className="pc-day-count">{group.items.length} créneau(x)</span>
+                    </div>
+                    <div className="pc-outage-list">
+                      {group.items.map((o, i) => (
+                        <div className="pc-outage-row" key={`${o.zone_id}-${o.starts_at}-${i}`}>
+                          <div className="pc-outage-when">
+                            {hhmm(o.starts_at)}–{hhmm(o.ends_at)}
+                            <small>{o.duration_min} min</small>
+                          </div>
+                          <div className="pc-outage-place">
+                            <div className="name">{o.locality}</div>
+                            <div className="sub">
+                              {o.governorate}
+                              {o.bcc_name ? ` · ${o.bcc_name}` : ''}
+                            </div>
+                          </div>
+                          <div className="pc-outage-side">
+                            <span className="pc-badge pc-badge-scheduled">Programmé</span>
+                            <span className="pc-outage-mw">{nf(o.planned_mw)} MW</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-          <button onClick={load} className="btn-refresh" title="Actualiser les données immédiatement">
-            🔄 Actualiser
-          </button>
-        </div>
+        </section>
 
-        {/* Quick Filter Chips */}
-        <div className="citizen-filter-chips">
-          <button
-            className={`chip ${activeFilter === 'ALL' ? 'chip-active' : ''}`}
-            onClick={() => setActiveFilter('ALL')}
-          >
-            Tous ({data?.zones.length ?? 7})
-          </button>
-          <button
-            className={`chip chip-shedding ${activeFilter === 'SHEDDING' ? 'chip-active' : ''}`}
-            onClick={() => setActiveFilter('SHEDDING')}
-          >
-            ⚡ En coupure ({sheddingCount})
-          </button>
-          <button
-            className={`chip chip-normal ${activeFilter === 'NORMAL' ? 'chip-active' : ''}`}
-            onClick={() => setActiveFilter('NORMAL')}
-          >
-            ✅ Normal ({normalCount})
-          </button>
-          <button
-            className={`chip ${activeFilter === 'NORD' ? 'chip-active' : ''}`}
-            onClick={() => setActiveFilter('NORD')}
-          >
-            Nord (4)
-          </button>
-          <button
-            className={`chip ${activeFilter === 'SUD' ? 'chip-active' : ''}`}
-            onClick={() => setActiveFilter('SUD')}
-          >
-            Sud (3)
-          </button>
-        </div>
-      </div>
-
-      {/* Network Map */}
-      <div className="citizen-map-section">
-        <h2 className="citizen-section-title">Carte du réseau</h2>
-        <CitizenMap zones={data?.zones ?? []} sheddingZoneIds={data?.shedding_zone_ids} />
-      </div>
-
-      {/* Zones Grid */}
-      <div className="citizen-zones-grid">
-        {filteredZones.length === 0 ? (
-          <div className="search-empty-card">
-            <div className="empty-icon">🔎</div>
-            <h3>Aucun centre trouvé pour « {search} »</h3>
-            <p>Vérifiez l'orthographe ou essayez un nom de ville voisin (ex: Tunis, Sfax, Bizerte, Nabeul, Gabès...).</p>
-            <button
-              className="btn-reset-search"
-              onClick={() => {
-                setSearch('');
-                setActiveFilter('ALL');
-              }}
-            >
-              🔄 Réinitialiser la recherche
-            </button>
+        {/* ── History + transparency chart ─────────────────────── */}
+        <section className="pc-section" aria-label="Historique des délestages">
+          <div className="pc-section-head">
+            <div>
+              <span className="pc-kicker">Transparence</span>
+              <h2 className="pc-section-title">Historique des délestages</h2>
+            </div>
+            <span className="pc-section-meta">7 derniers jours</span>
           </div>
-        ) : (
-          filteredZones.map(zone => {
-            const isShedding = zone.status === 'SHEDDING';
-            return (
-              <div key={zone.zone_id} className={`zone-card ${isShedding ? 'zone-shedding' : 'zone-normal'}`}>
-                <div className="zone-card-header">
-                  <div>
-                    <h3>{zone.display_name}</h3>
-                    <span className="zone-code">{zone.zone_id} · Région {zone.region || 'National'}</span>
-                  </div>
-                  <span className={`status-pill ${isShedding ? 'pill-shedding' : 'pill-normal'}`}>
-                    {isShedding ? '⚡ Coupure Temporaire' : '✅ Alimentation Normale'}
-                  </span>
+
+          {!historyAvailable || !history ? (
+            <div className="pc-card">
+              <div className="pc-empty">
+                <strong>Données indisponibles</strong>
+                L'historique public sera affiché dès qu'il sera disponible.
+              </div>
+            </div>
+          ) : (
+            <div className="pc-history-grid">
+              <div className="pc-card pc-chart-card">
+                <div className="pc-chart-head">
+                  <span className="t">Durée cumulée de délestage par jour</span>
+                  <span className="u">minutes</span>
                 </div>
-
-                <div className="governorates-tag">
-                  📍 <strong>Gouvernorats :</strong> {zone.governorates || 'Secteur régional'}
-                </div>
-
-                {isShedding && zone.affected_delegations && zone.affected_delegations.length > 0 && (
-                  <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: '#c53030', fontWeight: 600 }}>
-                    ⚡ <strong>Délégations impactées :</strong> {zone.affected_delegations.join(', ')}
-                  </div>
-                )}
-
-                {isShedding ? (
-                  <div className="zone-details">
-                    <div className="zone-metric">
-                      <span className="metric-label">Départs concernés :</span>
-                      <span className="metric-value font-bold">{zone.feeders_affected} ligne(s) MT</span>
-                    </div>
-                    {zone.events.map((ev, idx) => (
-                      <div key={idx} className="event-info-box">
-                        <div>
-                          <strong>Début coupure :</strong> {ev.started_at ? new Date(ev.started_at).toLocaleTimeString('fr-FR') : 'N/A'}
-                        </div>
-                        <div>
-                          <strong>Rétablissement estimé :</strong> {ev.estimated_end ? new Date(ev.estimated_end).toLocaleTimeString('fr-FR') : 'Sous 45 min'}
-                        </div>
-                        <div className="duration-tag">
-                          ⏱ Durée écoulée : {ev.duration_min} min (Plafond réglementaire : 45 min)
-                        </div>
+                <div className="pc-chart">
+                  {history.daily_series.map(d => {
+                    const pct = Math.round((d.duration_min / maxDaily) * 100);
+                    return (
+                      <div
+                        className="pc-chart-col"
+                        key={d.day}
+                        title={`${shortDate(d.day)} · ${nf(d.duration_min)} min`}
+                      >
+                        <div
+                          className={`pc-chart-bar ${d.duration_min === 0 ? 'is-zero' : ''}`}
+                          style={{ height: `${d.duration_min === 0 ? 2 : Math.max(pct, 4)}%` }}
+                        />
                       </div>
-                    ))}
-                    <p className="zone-note">
-                      🛡️ <em>Les services vitaux (hôpitaux, santé, stations d'eau potable) sont sous protection prioritaire stricte.</em>
-                    </p>
+                    );
+                  })}
+                </div>
+                <div className="pc-chart-axis">
+                  {history.daily_series.map(d => (
+                    <span key={d.day}>{weekday(d.day)}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pc-card">
+                {history.events.length === 0 ? (
+                  <div className="pc-empty">
+                    <strong>Aucun délestage recensé</strong>
+                    Aucun délestage n'a été enregistré sur les 7 derniers jours.
                   </div>
                 ) : (
-                  <div className="zone-details">
-                    <p className="text-muted">Aucun délestage n'est en cours ni programmé sur ce secteur.</p>
-                    <span className="security-tag">🛡️ Tension normale et stable</span>
-                  </div>
+                  <table className="pc-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Localité</th>
+                        <th className="num">Durée</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.events.slice(0, 8).map((e, i) => (
+                        <tr key={`${e.locality}-${e.started_at}-${i}`}>
+                          <td className="num">
+                            {shortDate(e.date)}
+                            <br />
+                            <span style={{ color: 'var(--pc-faint)', fontSize: '11.5px' }}>
+                              {hhmm(e.started_at)}–{hhmm(e.ended_at)}
+                            </span>
+                          </td>
+                          <td className="place">
+                            {e.locality}
+                            <small>{e.region}</small>
+                          </td>
+                          <td className="num">{e.duration_min} min</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
-            );
-          })
-        )}
+            </div>
+          )}
+        </section>
+
+        {/* ── National transparency statistics ─────────────────── */}
+        <section className="pc-section" aria-label="Statistiques nationales">
+          <div className="pc-section-head">
+            <div>
+              <span className="pc-kicker">Statistiques nationales</span>
+              <h2 className="pc-section-title">Bilan des 7 derniers jours</h2>
+            </div>
+          </div>
+          <div className="pc-stats-grid">
+            <div className="pc-card pc-stat-card">
+              <div className="pc-stat-num">{historyAvailable && history ? history.total_events : '—'}</div>
+              <div className="pc-stat-cap">Délestages recensés</div>
+            </div>
+            <div className="pc-card pc-stat-card">
+              <div className="pc-stat-num">
+                {historyAvailable && history ? nf(history.total_duration_min) : '—'}
+              </div>
+              <div className="pc-stat-cap">Minutes cumulées de délestage</div>
+            </div>
+            <div className="pc-card pc-stat-card">
+              <div className="pc-stat-num">{historyAvailable && history ? nf(history.total_ens_mwh) : '—'}</div>
+              <div className="pc-stat-cap">Énergie non distribuée (MWh)</div>
+            </div>
+            <div className="pc-card pc-stat-card">
+              <div className="pc-stat-num">{historyAvailable && history ? avgDuration : '—'}</div>
+              <div className="pc-stat-cap">Durée moyenne par délestage (min)</div>
+            </div>
+          </div>
+          <p className="pc-stat-note">
+            Indicateurs calculés à partir des délestages clôturés et validés. Les sites prioritaires (hôpitaux,
+            production et distribution d'eau) sont exclus du délestage et ne figurent pas dans ces chiffres.
+          </p>
+        </section>
       </div>
 
-      <footer className="citizen-footer">
-        <p>Société Tunisienne de l'Électricité et du Gaz (STEG) — Plateforme Nationale de Gestion Intelligente des Délestages Tournants</p>
-        <p className="footer-sub">Conformité stricte aux règles de rotation de 45 minutes et de protection des infrastructures de santé publique.</p>
+      {/* ── Footer ─────────────────────────────────────────────── */}
+      <footer className="pc-footer">
+        <div className="pc-footer-inner">
+          <p>Société Tunisienne de l'Électricité et du Gaz (STEG) — état public du réseau électrique.</p>
+          <p>
+            Seules les informations confirmées et validées par les opérateurs sont publiées. Les données provisoires
+            ou en cours d'analyse ne sont pas affichées.
+          </p>
+        </div>
       </footer>
     </div>
   );

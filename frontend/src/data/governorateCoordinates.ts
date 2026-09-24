@@ -30,6 +30,6 @@ export const GOVERNORATE_COORDINATES: Record<string, [number, number]> = {
   'Kébili': [33.7044, 8.9690],
 };
 
-// Geographic center used to frame the initial map view over Tunisia.
-export const TUNISIA_CENTER: [number, number] = [34.4, 9.6];
-export const TUNISIA_DEFAULT_ZOOM = 7;
+// Geographic + camera configuration now lives in src/config/mapConfig.ts.
+// Re-exported here for backwards compatibility with any legacy import path.
+export { TUNISIA_CENTER, TUNISIA_MAP_BOUNDS, TUNISIA_CAMERA } from '../config/mapConfig';

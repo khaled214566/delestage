@@ -141,7 +141,7 @@ export default function OrdersPage() {
                 <div>Mode: {order.plan_mode}</div>
                 <div>Déficit total: {order.total_deficit_mw.toLocaleString('fr-FR')} MW</div>
                 {order.shortfall_count > 0 && (
-                  <div className="shortfall-indicator">⚠️ {order.shortfall_count} écart(s)</div>
+                  <div className="shortfall-indicator">{order.shortfall_count} écart(s) d'allocation</div>
                 )}
                 <div className="order-date-created">Créé le {new Date(order.created_at).toLocaleString('fr-FR')}</div>
               </div>
@@ -218,7 +218,7 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="modal-warning-box">
-                  <strong>⚠️ Avertissement :</strong> Cet ordre de délestage <strong>n'est pas encore terminé</strong> (statut actuel : <strong>{orderToDelete.status}</strong>).
+                  <strong>Avertissement :</strong> Cet ordre de délestage <strong>n'est pas encore terminé</strong> (statut actuel : <strong>{orderToDelete.status}</strong>).
                   <br /><br />
                   La suppression d'un ordre non terminé peut impacter les opérations de délestage en cours ou prévues sur le réseau électrique.
                 </div>

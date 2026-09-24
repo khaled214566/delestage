@@ -103,7 +103,7 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
               boxShadow: isPaused ? 'none' : '0 0 8px #22c55e',
             }}
           />
-          <strong style={{ fontSize: '0.95rem', letterSpacing: '0.02em' }}>📡 Télémétrie Réseau en Direct (1 Hz)</strong>
+          <strong style={{ fontSize: '0.95rem', letterSpacing: '0.02em' }}>Télémesure Réseau Temps Réel (1 Hz)</strong>
           <span style={{ fontSize: '0.75rem', background: '#1e293b', padding: '2px 8px', borderRadius: '4px', color: '#38bdf8' }}>
             {current.scenario || 'Actif'}
           </span>
@@ -112,7 +112,7 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
 
         {/* Scenario selection buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Scénarios :</span>
+          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Profils de charge :</span>
           <button
             onClick={() => handleScenarioChange('AUTO')}
             className="btn-small"
@@ -126,7 +126,7 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
               fontWeight: 600,
             }}
           >
-            🔄 Cycle Auto (0 ↔ 800 MW)
+            Dynamique (0 ↔ 800 MW)
           </button>
           <button
             onClick={() => handleScenarioChange('BALANCED')}
@@ -141,7 +141,7 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
               fontWeight: 600,
             }}
           >
-            🟢 0 MW (Équilibre)
+            Nominal (0 MW)
           </button>
           <button
             onClick={() => handleScenarioChange('MODERATE')}
@@ -156,7 +156,7 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
               fontWeight: 600,
             }}
           >
-            🟡 ~350 MW (Déficit Réel)
+            Déficit modéré (~350 MW)
           </button>
           <button
             onClick={() => handleScenarioChange('PEAK')}
@@ -171,14 +171,14 @@ export default function LiveGridTelemetry({ latestTick }: LiveGridTelemetryProps
               fontWeight: 600,
             }}
           >
-            ⚡ ~800 MW (Pic)
+            Pointe critique (~800 MW)
           </button>
           <button
             onClick={() => setIsPaused(!isPaused)}
             className="btn-small btn-ghost"
             style={{ color: '#94a3b8', borderColor: '#334155', padding: '2px 8px', fontSize: '0.75rem' }}
           >
-            {isPaused ? '▶ Reprendre' : '⏸ Pause'}
+            {isPaused ? 'Reprendre' : 'Pause'}
           </button>
         </div>
       </div>

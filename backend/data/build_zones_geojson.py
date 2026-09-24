@@ -26,42 +26,42 @@ def norm_fr(s):
     return ' '.join(s.split()).strip()
 
 GOV_TO_BCC = {
-    'Tunis': ('BCC1', 'BCC TUNIS (Grand Tunis)'),
-    'Ariana': ('BCC1', 'BCC TUNIS (Grand Tunis)'),
-    'Ben Arous': ('BCC1', 'BCC TUNIS (Grand Tunis)'),
-    'Manubah': ('BCC1', 'BCC TUNIS (Grand Tunis)'),
-    'Manouba': ('BCC1', 'BCC TUNIS (Grand Tunis)'),
+    'Tunis': ('BCC1', 'BCC Tunis (Grand Tunis)'),
+    'Ariana': ('BCC1', 'BCC Tunis (Grand Tunis)'),
+    'Ben Arous': ('BCC1', 'BCC Tunis (Grand Tunis)'),
+    'Manubah': ('BCC1', 'BCC Tunis (Grand Tunis)'),
+    'Manouba': ('BCC1', 'BCC Tunis (Grand Tunis)'),
     
-    'Nabeul': ('BCC2', 'BCC GROMBALIA (Nord-Est)'),
-    'Zaghouan': ('BCC2', 'BCC GROMBALIA (Nord-Est)'),
+    'Nabeul': ('BCC2', 'BCC Nabeul (Cap Bon)'),
+    'Zaghouan': ('BCC2', 'BCC Nabeul (Cap Bon)'),
     
-    'Bizerte': ('BCC4', 'BCC BÉJA (Nord-Ouest)'),
-    'Béja': ('BCC4', 'BCC BÉJA (Nord-Ouest)'),
-    'Beja': ('BCC4', 'BCC BÉJA (Nord-Ouest)'),
-    'Jendouba': ('BCC4', 'BCC BÉJA (Nord-Ouest)'),
-    'Le Kef': ('BCC4', 'BCC BÉJA (Nord-Ouest)'),
-    'Siliana': ('BCC4', 'BCC BÉJA (Nord-Ouest)'),
+    'Bizerte': ('BCC4', 'BCC Bizerte (Nord-Ouest)'),
+    'Béja': ('BCC4', 'BCC Bizerte (Nord-Ouest)'),
+    'Beja': ('BCC4', 'BCC Bizerte (Nord-Ouest)'),
+    'Jendouba': ('BCC4', 'BCC Bizerte (Nord-Ouest)'),
+    'Le Kef': ('BCC4', 'BCC Bizerte (Nord-Ouest)'),
+    'Siliana': ('BCC4', 'BCC Bizerte (Nord-Ouest)'),
     
-    'Sousse': ('BCC3', 'BCC SOUSSE (Centre)'),
-    'Monastir': ('BCC3', 'BCC SOUSSE (Centre)'),
-    'Mahdia': ('BCC3', 'BCC SOUSSE (Centre)'),
-    'Kairouan': ('BCC3', 'BCC SOUSSE (Centre)'),
+    'Sousse': ('BCC3', 'BCC Sousse (Sahel)'),
+    'Monastir': ('BCC3', 'BCC Sousse (Sahel)'),
+    'Mahdia': ('BCC3', 'BCC Sousse (Sahel)'),
+    'Kairouan': ('BCC3', 'BCC Sousse (Sahel)'),
     
-    'Sfax': ('BCC5', 'BCC SFAX (Sfax)'),
+    'Sfax': ('BCC5', 'BCC Sfax (Sfax)'),
     
-    'Gabès': ('BCC6', 'BCC GABÈS (Sud-Est)'),
-    'Gabes': ('BCC6', 'BCC GABÈS (Sud-Est)'),
-    'Médenine': ('BCC6', 'BCC GABÈS (Sud-Est)'),
-    'Medenine': ('BCC6', 'BCC GABÈS (Sud-Est)'),
-    'Tataouine': ('BCC6', 'BCC GABÈS (Sud-Est)'),
+    'Gabès': ('BCC6', 'BCC Gabès (Sud-Est)'),
+    'Gabes': ('BCC6', 'BCC Gabès (Sud-Est)'),
+    'Médenine': ('BCC6', 'BCC Gabès (Sud-Est)'),
+    'Medenine': ('BCC6', 'BCC Gabès (Sud-Est)'),
+    'Tataouine': ('BCC6', 'BCC Gabès (Sud-Est)'),
     
-    'Gafsa': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
-    'Tozeur': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
-    'Kebili': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
-    'Kassérine': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
-    'Kasserine': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
-    'Sidi Bou Zid': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
-    'Sidi Bouzid': ('BCC7', 'BCC GAFSA (Sud-Ouest)'),
+    'Gafsa': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
+    'Tozeur': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
+    'Kebili': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
+    'Kassérine': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
+    'Kasserine': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
+    'Sidi Bou Zid': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
+    'Sidi Bouzid': ('BCC7', 'BCC Gafsa (Sud-Ouest)'),
 }
 
 SYNONYMS = {
@@ -90,34 +90,6 @@ SYNONYMS = {
     'باب بحر': 'باب البحر',
     'والد شامخ': 'أولاد شامخ',
     'حمام الغزاز': 'حمام الأغزاز',
-}
-
-SUBZONES_SAMPLE = {
-    "La Marsa": ["Marsa Ville", "Marsa Plage", "Marsa Cube", "Gammarth", "Les Citrons", "Sidi Dhrif", "Gammarth Supérieur"],
-    "Carthage": ["Carthage Byrsa", "Carthage Dermech", "Carthage Amilcar", "Carthage Présidence", "Yasmina"],
-    "Le Kram": ["Le Kram Est", "Le Kram Ouest", "Salammbô", "Khereddine"],
-    "La Goulette": ["La Goulette Casino", "Cité El Habib", "Taher Sfar", "Quartier du Port"],
-    "El Menzah": ["El Menzah 1", "El Menzah 4", "El Menzah 5", "El Menzah 6", "El Menzah 7", "El Menzah 8", "El Menzah 9"],
-    "El Manar": ["El Manar 1", "El Manar 2", "El Manar 3", "Campus Universitaire"],
-    "Ariana Médina": ["Ariana Supérieur", "Cité Ennasr 1", "Cité Ennasr 2", "Cité Essaha"],
-    "Soukra": ["Chotrana 1", "Chotrana 2", "Chotrana 3", "Dar Fadhal", "Borj Louzir (partie)"],
-    "Raoued": ["Raoued Plage", "Ariana Essoughra", "Cité Yamama", "Raoued Ville"],
-    "Ben Arous": ["Ben Arous Ville", "Cité Bougatfa", "Zone Industrielle Ben Arous"],
-    "Radès": ["Radès Forêt", "Radès Plage", "Radès Méliane", "Cité Noujoom", "Cité Olympique"],
-    "Mégrine": ["Mégrine Coteaux", "Mégrine Riadh", "Mégrine Chaker", "Z.I. Saint-Gobain"],
-    "Hammam Lif": ["Centre-Ville", "Bou Kornine", "Cité Mohamed Ali", "Casino"],
-    "El Mourouj": ["El Mourouj 1", "El Mourouj 2", "El Mourouj 3", "El Mourouj 4", "El Mourouj 5", "El Mourouj 6"],
-    "Fouchana": ["Fouchana Centre", "Cité El Mghira", "Zone Industrielle El Mghira 1 & 2"],
-    "Hammamet": ["Hammamet Centre", "Hammamet Nord", "Yasmine Hammamet", "Barraket Essahel", "Bir Bouregba"],
-    "Nabeul": ["Nabeul Centre", "Les Vergers", "Cité Wafa", "Zone Touristique", "Sidi Mahersi"],
-    "Sousse Médina": ["Médina", "Bouhsina", "Khézama Est", "Khézama Ouest", "Corniche", "Port de Sousse"],
-    "Hammam Sousse": ["Hammam Sousse Centre", "El Kantaoui", "Port El Kantaoui", "Cité Menchia"],
-    "Sfax Médina": ["Bab Bhar", "Picville", "100 Mètres", "Moulinville", "Poudrière 1", "Poudrière 2"],
-    "Bizerte Nord": ["Bizerte Nord", "Zarzouna", "Corniche", "Vieux Port", "Rimel"],
-    "Houmt Souk": ["Houmt Souk Centre", "Erriadh (Hara Sghira)", "Taourit", "Mellita"],
-    "Djerba Midoun": ["Midoun Centre", "Zone Touristique Djerba", "Aghir", "Mahboubine", "Arkou"],
-    "Tozeur": ["Tozeur Centre", "Palmeraie", "Cité El Hdar", "Zone Touristique"],
-    "Kairouan Nord": ["Kairouan Nord", "Médina", "Cité Mohamed Ali", "Mansoura", "Cité Okba"],
 }
 
 def main():
@@ -189,7 +161,6 @@ def main():
             center_y = 35.0
 
         bcc_id, bcc_name = GOV_TO_BCC.get(gov_name, ('BCC1', 'BCC TUNIS'))
-        subzones = SUBZONES_SAMPLE.get(zone_fr, [f"{zone_fr} Centre", f"Secteur {zone_fr}"])
 
         # Look up MW and population from load data
         load_info = load_by_pcode.get(pcode, {})
@@ -206,7 +177,6 @@ def main():
             "bcc_id": bcc_id,
             "bcc_name": bcc_name,
             "center": [center_y, center_x],
-            "subzones": subzones,
             "managed_load_mw": managed_mw,
             "estimated_peak_mw": peak_mw,
             "population_2024": pop,

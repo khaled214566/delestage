@@ -22,6 +22,7 @@ from app.schemas.rotation import (
 )
 from app.services import audit
 from app.services import monitoring as monitoring_service
+from app.services.zone_names import feeder_display_name
 from app.core.websocket import ws_manager
 
 from app.engine.rotation import PureRotationCandidate, rank_rotation_candidates
@@ -100,7 +101,7 @@ async def get_active_rotation_proposals(
                 pure_candidates.append(
                     PureRotationCandidate(
                         id=f.id,
-                        name=f.name,
+                        name=feeder_display_name(f),
                         substation_name=f.substation.name if f.substation else "",
                         priority=f.priority.value,
                         avg_mw=f.avg_mw,
@@ -119,7 +120,7 @@ async def get_active_rotation_proposals(
                 RotationProposal(
                     outgoing_event_id=ev.id,
                     outgoing_feeder_id=ev.feeder_id,
-                    outgoing_feeder_name=ev.feeder.name if ev.feeder else ev.feeder_id,
+                    outgoing_feeder_name=feeder_display_name(ev.feeder) if ev.feeder else ev.feeder_id,
                     substation_name=ev.feeder.substation.name if (ev.feeder and ev.feeder.substation) else "",
                     bcc_id=ev.bcc_id,
                     bcc_name=ev.bcc.name if ev.bcc else ev.bcc_id,

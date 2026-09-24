@@ -173,7 +173,7 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
                   onClick={handleActivate}
                   disabled={activateMutation.isPending}
                 >
-                  ⚡ Activer l'exécution
+                  Activer l'exécution
                 </button>
                 <button 
                   className="btn-small btn-ghost" 
@@ -190,7 +190,7 @@ export default function OrderDetail({ orderId }: OrderDetailProps) {
                 onClick={handleComplete}
                 disabled={completeMutation.isPending}
               >
-                ✅ Marquer comme terminé
+                Clôturer l'ordre (Terminé)
               </button>
             )}
           </div>
