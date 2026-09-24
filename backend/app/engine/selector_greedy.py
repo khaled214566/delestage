@@ -5,7 +5,26 @@ the BCC's target MW is approximately met. Handles overshoot tolerance and
 shortfall detection.
 """
 from dataclasses import dataclass, field
+from app.models.enums import PriorityLevel
 from app.engine.rules import FeederCandidate
+
+# Shedding order: P5 first (tier 1), P4 next (tier 2), down to P1 (tier 5)
+PRIORITY_SHED_ORDER: dict[PriorityLevel | str, int] = {
+    PriorityLevel.P5: 1,
+    "P5": 1,
+    PriorityLevel.P4: 2,
+    "P4": 2,
+    PriorityLevel.P3: 3,
+    "P3": 3,
+    PriorityLevel.P2: 4,
+    "P2": 4,
+    PriorityLevel.P1: 5,
+    "P1": 5,
+}
+
+
+def _priority_rank(priority: PriorityLevel | str) -> int:
+    return PRIORITY_SHED_ORDER.get(priority, 99)
 
 
 @dataclass
@@ -26,7 +45,8 @@ def select_feeders(
     """Greedy feeder selection for a single BCC target.
     
     Algorithm:
-    1. Sort eligible feeders by fairness_score ascending (ties: feeder_id)
+    1. Sort eligible feeders by priority tier ascending (P5 -> P1),
+       then by fairness_score ascending, then feeder_id for determinism.
     2. Pick feeders one by one until target is met or exceeded within tolerance
     3. When adding a feeder would overshoot beyond tolerance, check if
        adding it brings us closer to the target than not adding it
@@ -43,8 +63,12 @@ def select_feeders(
     if target_mw <= 0:
         return SelectionResult(target_mw=target_mw)
     
-    # Sort by fairness score ascending, then feeder_id for determinism
-    sorted_feeders = sorted(eligible, key=lambda f: (f.fairness_score, f.feeder_id))
+    # Sort primarily by priority tier (P5 first down to P1),
+    # then fairness score ascending, then feeder_id for determinism
+    sorted_feeders = sorted(
+        eligible,
+        key=lambda f: (_priority_rank(f.priority), f.fairness_score, f.feeder_id),
+    )
     
     selected: list[FeederCandidate] = []
     achieved = 0.0

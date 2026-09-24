@@ -101,3 +101,18 @@ async def get_status(
             else "Aucun délestage actif — prêt pour la démo"
         ),
     }
+
+
+@router.post("/factory-reset")
+async def factory_reset_sim(
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(_require_dispatcher_or_admin),
+):
+    """Full factory reset: wipe all operational state and re-seed to day 1."""
+    from app.services.admin import reset_database_to_factory
+    return await reset_database_to_factory(
+        db,
+        actor_id=str(current.id),
+        actor_name=current.name,
+    )
+
