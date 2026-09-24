@@ -163,10 +163,25 @@ def make_history(rng: np.random.Generator, priority: str, ref: datetime) -> dict
 # Load real Tunisian delegation data if available
 DELEGATIONS_BY_BCC: dict[str, list[dict]] = {}
 try:
+    _admin_file = Path(__file__).resolve().parent.parent / "data" / "tunisia_admin_pcode.csv"
+    canonical_names: dict[str, dict[str, str]] = {}
+    if _admin_file.exists():
+        with open(_admin_file, mode="r", encoding="utf-8") as _f:
+            for _row in csv.DictReader(_f):
+                if _row["admin_level"] == "3":
+                    canonical_names[_row["adm3_pcode"]] = {
+                        "name_fr": _row["name"],
+                        "name_ar": _row["name1"],
+                    }
+
     _csv_file = Path(__file__).resolve().parent.parent / "data" / "tunisia_load_data.csv"
     if _csv_file.exists():
         with open(_csv_file, mode="r", encoding="utf-8") as _f:
             for _row in csv.DictReader(_f):
+                _row = dict(_row)
+                canonical = canonical_names.get(_row["pcode"])
+                if canonical:
+                    _row.update(canonical)
                 DELEGATIONS_BY_BCC.setdefault(_row["bcc_id"], []).append(_row)
         for _b in DELEGATIONS_BY_BCC:
             DELEGATIONS_BY_BCC[_b].sort(key=lambda x: -int(x.get("population_2024", 0)))
@@ -214,15 +229,13 @@ def build_network(seed: int = DEFAULT_SEED, ref: datetime = REFERENCE_TIME) -> N
             fid = f"F-{num}{i + 1:02d}"
             priority = priorities[i]
 
-            # Assign real delegation if available, fallback to label + counter
+            # Use the CSV delegation as the public zone name; feeder IDs remain unique.
             if dels:
                 d = dels[i % len(dels)]
-                suffix = f" {i // len(dels) + 1}" if n > len(dels) else ""
-                feeder_name = f"Départ {d['name_fr']}{suffix}"
+                feeder_name = f"Départ {d['name_fr']}"
                 zone_id = f"Z-{d['pcode']}"
             else:
-                feeder_name = f"Départ {label} {j}"
-                zone_id = f"Z-{zone_code}-{(j - 1) // 2 + 1}"
+                raise RuntimeError(f"No CSV delegation data loaded for {bcc_id}")
 
             feeders.append({
                 "id": fid,

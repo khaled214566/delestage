@@ -52,7 +52,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <form className="login-form" onSubmit={handleSubmit}>
-        <h1>🔌 Plateforme Nationale de Délestage</h1>
+        <h1>Plateforme Nationale de Délestage</h1>
         <p className="login-sub">Société Tunisienne de l'Électricité et du Gaz (STEG)</p>
 
         <label>
@@ -82,7 +82,7 @@ export default function LoginPage() {
         </button>
 
         <div className="demo-accounts-box">
-          <span className="demo-title">Comptes de Démonstration (Mot de passe: <code>delestage123</code>) :</span>
+          <span className="demo-title">Profils d'accès de test (Mot de passe : <code>delestage123</code>) :</span>
           <div className="demo-chips-grid">
             {DEMO_ACCOUNTS.map((acc) => (
               <button

@@ -11,6 +11,7 @@ from app.models.order import ShedOrder, AllocationNode
 from app.models.parameters import Parameters
 from app.schemas.monitoring import MonitoringSummary, RegionalSummary, ShedEventOut
 from app.core.websocket import ws_manager
+from app.services.zone_names import feeder_display_name
 
 
 async def get_monitoring_summary(db: AsyncSession, order_id: Optional[int] = None) -> MonitoringSummary:
@@ -69,7 +70,7 @@ async def get_monitoring_summary(db: AsyncSession, order_id: Optional[int] = Non
                 id=ev.id,
                 order_id=ev.order_id,
                 feeder_id=ev.feeder_id,
-                feeder_name=ev.feeder.name if ev.feeder else ev.feeder_id,
+                feeder_name=feeder_display_name(ev.feeder) if ev.feeder else ev.feeder_id,
                 bcc_id=ev.bcc_id,
                 open_time=ev.open_time,
                 close_time=ev.close_time,

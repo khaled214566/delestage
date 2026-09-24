@@ -98,13 +98,12 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
       {/* Header */}
       <div className="rt-deficit-header">
         <div className="rt-deficit-title-group">
-          <span className="rt-header-icon">⚡</span>
           <div>
             <h3 className="rt-header-title">
-              Calcul du Déficit en Temps Réel &amp; Déclenchement d'Urgence
+              Calcul du Déficit en Temps Réel &amp; Télécommande d'Urgence
             </h3>
             <p className="rt-header-subtitle">
-              Calcul instantané du déséquilibre réseau :{' '}
+              Bilan instantané du déséquilibre réseau :{' '}
               <code>Déficit = Max(0, Demande - (Production + Imports - Marge))</code>
             </p>
           </div>
@@ -121,7 +120,7 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
             className={`btn-mode ${calcMode === 'SIMULATION' ? 'active-mode-sim' : ''}`}
             onClick={() => setCalcMode('SIMULATION')}
           >
-            🛠️ Simulateur "What-If"
+            Simulation Paramétrique (What-If)
           </button>
         </div>
       </div>
@@ -168,22 +167,21 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
           <span className="rt-result-label">Déficit Calculé</span>
           <span className="rt-result-val">{deficitMw.toFixed(1)} MW</span>
           <span className="rt-result-tag">
-            {deficitMw > 0 ? '🔴 Coupure Requise' : '🟢 Équilibre Réseau'}
+            {deficitMw > 0 ? 'Délestage Requis' : 'Équilibre Nominal'}
           </span>
         </div>
       </div>
 
       {/* Preset Real-Time Cases */}
       <div className="rt-cases-section">
-        <span className="rt-cases-title">Cas d'Étude &amp; Incidents Réseau en Temps Réel :</span>
+        <span className="rt-cases-title">Profils Réseau &amp; Incidents Types :</span>
         <div className="rt-cases-grid">
           <button
             className={`case-button ${activePreset === 'CASE_350' ? 'active-case' : ''}`}
             onClick={() => handleApplyPreset('CASE_350', 4400, 3800, 200, 50, 'MODERATE')}
           >
-            <span className="case-icon">⚡</span>
             <div className="case-info">
-              <strong>Cas A : Perte Tranche Thermique (-350 MW)</strong>
+              <strong>Cas A : Déclenchement Tranche Thermique (-350 MW)</strong>
               <small>Dem: 4400 | Prod: 3800 | Imp: 200 | M: 50 ➔ <strong>Déficit: 350 MW</strong></small>
             </div>
           </button>
@@ -192,9 +190,8 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
             className={`case-button ${activePreset === 'CASE_800' ? 'active-case' : ''}`}
             onClick={() => handleApplyPreset('CASE_800', 4820, 3740, 190, 50, 'PEAK')}
           >
-            <span className="case-icon">🔥</span>
             <div className="case-info">
-              <strong>Cas B : Pic Canicule &amp; Surcharge (+800 MW)</strong>
+              <strong>Cas B : Pointe de Canicule &amp; Surcharge (+800 MW)</strong>
               <small>Dem: 4820 | Prod: 3740 | Imp: 190 | M: 50 ➔ <strong>Déficit: 940 MW</strong></small>
             </div>
           </button>
@@ -203,7 +200,6 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
             className={`case-button ${activePreset === 'CASE_BALANCED' ? 'active-case' : ''}`}
             onClick={() => handleApplyPreset('CASE_BALANCED', 3940, 3850, 215, 60, 'BALANCED')}
           >
-            <span className="case-icon">🟢</span>
             <div className="case-info">
               <strong>Cas C : Situation Nominale &amp; Équilibre (0 MW)</strong>
               <small>Dem: 3940 | Prod: 3850 | Imp: 215 | M: 60 ➔ <strong>Déficit: 0 MW</strong></small>
@@ -214,7 +210,6 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
             className={`case-button ${activePreset === 'CASE_INTERCO' ? 'active-case' : ''}`}
             onClick={() => handleApplyPreset('CASE_INTERCO', 4300, 3800, 50, 50, 'MODERATE')}
           >
-            <span className="case-icon">🔌</span>
             <div className="case-info">
               <strong>Cas D : Perte Interconnexion Extérieure (-150 MW)</strong>
               <small>Dem: 4300 | Prod: 3800 | Imp: 50 | M: 50 ➔ <strong>Déficit: 500 MW</strong></small>
@@ -289,13 +284,11 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
         <div className="rt-footer-diagnosis">
           {deficitMw > 0 ? (
             <span>
-              🚨 <strong>Déficit critique avéré ({deficitMw.toFixed(1)} MW)</strong> : Risque d'effondrement de fréquence (Blackout).
-              Déclenchement direct du délestage automatique sans délai humain.
+              <strong>Déficit actif constaté ({deficitMw.toFixed(1)} MW)</strong> : Risque d'écart sur la fréquence du réseau national. Ordre d'effacement d'urgence nécessaire.
             </span>
           ) : (
             <span>
-              ✅ <strong>Réserve d'énergie suffisante</strong> : L'offre couvre intégralement la demande nationale avec
-              marge de sécurité.
+              <strong>Marge d'exploitation conforme</strong> : L'offre couvre intégralement la demande nationale avec maintien des réserves primaires.
             </span>
           )}
         </div>
@@ -305,12 +298,12 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
             className="btn-emergency-auto-shed"
             onClick={() => emergencyMutation.mutate(deficitMw)}
             disabled={emergencyMutation.isPending}
-            title="Calcule équitablement et coupe immédiatement les départs sans aucune intervention manuelle"
+            title="Calcule la répartition et transmet les ordres d'ouverture aux départs éligibles"
           >
             {emergencyMutation.isPending ? (
-              <span className="spinner-inline">⚡ Coupure automatique des départs en cours...</span>
+              <span className="spinner-inline">Télécommande d'ouverture en cours...</span>
             ) : (
-              <span>🚨 DÉLESTER EN URGENCE AUTOMATIQUE ({deficitMw.toFixed(1)} MW)</span>
+              <span>Déclencher l'effacement d'urgence ({deficitMw.toFixed(1)} MW)</span>
             )}
           </button>
         )}
@@ -322,13 +315,12 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
           <div className="modal-box emergency-report-modal" onClick={(e) => e.stopPropagation()}>
             <div className="emergency-modal-header">
               <div className="emergency-title-row">
-                <span className="emergency-icon-large">🚨</span>
                 <div>
                   <h3 className="emergency-modal-title">
-                    Délestage d'Urgence Automatique Réalisé avec Succès !
+                    Délestage d'Urgence Télécommandé
                   </h3>
                   <p className="emergency-modal-sub">
-                    Ordre #{emergencyResult.order_id} activé · Fréquence nationale stabilisée à 50.00 Hz · Blackout évité
+                    Ordre #{emergencyResult.order_id} exécuté · Fréquence réseau régulée à la valeur nominale
                   </p>
                 </div>
               </div>
@@ -352,18 +344,18 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
               </div>
               <div className="em-kpi-card">
                 <span className="em-kpi-label">Délai d'Exécution</span>
-                <span className="em-kpi-val text-purple">&lt; 1 sec (Auto)</span>
+                <span className="em-kpi-val text-purple">&lt; 1 s (Télécommande)</span>
               </div>
             </div>
 
             <div className="emergency-rule-explanation">
-              🛡️ <strong>Garantie d'Équité &amp; Priorité STEG</strong> : Les {emergencyResult.cut_feeders_count} départs
-              ont été sélectionnés et ouverts automatiquement selon les calculs stricts du moteur d'équité (priorités décroissantes
-              P5 ➔ P1, respect absolu des 180 min de repos et protection intégrale des infrastructures vitales P0).
+              <strong>Contrôle des critères d'exploitation STEG</strong> : Les {emergencyResult.cut_feeders_count} départs
+              ont été sélectionnés et télécommandés selon les règles hiérarchiques de priorité
+              (P5 ➔ P1), avec respect des temps de repos matériel et verrouillage absolu des infrastructures P0.
             </div>
 
             <div className="emergency-feeders-table-wrap">
-              <h4>📋 Liste des départs coupés immédiatement en télécommande terrain :</h4>
+              <h4>Départs télécommandés à l'ouverture :</h4>
               <table className="emergency-table">
                 <thead>
                   <tr>
@@ -390,7 +382,7 @@ export default function RealTimeDeficitWidget({ latestTick }: RealTimeDeficitWid
                         <strong>{f.mw_cut.toFixed(1)} MW</strong>
                       </td>
                       <td>
-                        <span className="status-open-pill">⚡ COUPÉ</span>
+                        <span className="status-open-pill">COUPÉ</span>
                       </td>
                     </tr>
                   ))}

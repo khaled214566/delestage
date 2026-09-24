@@ -193,10 +193,10 @@ export default function MonitoringDashboard() {
 
       {/* Live Simulation Console */}
       <div className="simulation-console">
-        <h3>🕹️ Banc d'Essai &amp; Simulation de Télémesure (Démonstrateur)</h3>
+        <h3>Banc de Commande et Simulation Télémesure</h3>
         <p className="sim-help-text">
-          Permet de simuler l'ouverture ou le rétablissement d'un disjoncteur sur le terrain pour observer la mise à jour
-          immédiate des compteurs, du gap national et des alarmes via WebSocket.
+          Console de simulation de manœuvres sur disjoncteurs pour tester la synchronisation des télémesures,
+          du bilan de puissance et des indicateurs d'alarme en temps réel.
         </p>
         <div className="sim-controls">
           <input
@@ -211,17 +211,17 @@ export default function MonitoringDashboard() {
             onClick={() => toggleMutation.mutate({ feederId: simFeederId, openState: true })}
             disabled={toggleMutation.isPending}
           >
-            ⚡ Simuler Ouverture (Coupure)
+            Simuler ouverture (Délestage)
           </button>
           <button
             className="btn-small btn-ghost"
             onClick={() => toggleMutation.mutate({ feederId: simFeederId, openState: false })}
             disabled={toggleMutation.isPending}
           >
-            🔌 Simuler Rétablissement
+            Simuler fermeture (Rétablissement)
           </button>
           <div className="quick-sim-buttons">
-            <span>Raccourcis démo :</span>
+            <span>Départs d'essai :</span>
             {['F-101', 'F-125', 'F-144'].map((f) => (
               <button
                 key={f}
@@ -231,7 +231,7 @@ export default function MonitoringDashboard() {
                   toggleMutation.mutate({ feederId: f, openState: true });
                 }}
               >
-                + Couper {f}
+                Ouvrir {f}
               </button>
             ))}
           </div>
