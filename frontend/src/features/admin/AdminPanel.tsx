@@ -3,12 +3,13 @@ import {
   getParameters, patchParameters,
   getUsers, createUser, toggleUser,
   getAuditLogs, verifyAuditChain, downloadAuditCsv,
+  resetFullDatabase,
   type ParametersData, type UserData, type AuditLogEntry, type ChainVerifyResponse,
   type UserCreatePayload,
 } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 
-type Tab = 'params' | 'users' | 'audit';
+type Tab = 'params' | 'users' | 'audit' | 'maintenance';
 
 // ─── Parameters Tab ──────────────────────────────────────────────────────────
 
@@ -539,6 +540,102 @@ function AuditTab() {
   );
 }
 
+// ─── Maintenance & Factory Reset Tab ──────────────────────────────────────────
+
+function MaintenanceTab() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'DISPATCHER';
+  const [resetting, setResetting] = useState(false);
+  const [resultMsg, setResultMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const handleReset = async () => {
+    const confirmed = window.confirm(
+      "⚠️ REMISE À ZÉRO TOTALE DE LA PLATEFORME (ÉTAT INITIAL USINE)\n\n" +
+      "Voulez-vous réinitialiser l'intégralité de la base de données comme lors de la toute première installation ?\n\n" +
+      "• Tous les ordres, plans et événements de délestage seront effacés.\n" +
+      "• Tous les départs reviendront à l'état FERMÉ.\n" +
+      "• Le journal d'audit sera régénéré avec un bloc de genèse.\n" +
+      "• Les 4 comptes d'accès par défaut (admin, ahmed, crc_n, sana) seront rétablis.\n\n" +
+      "Confirmez-vous la réinitialisation complète ?"
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    setResultMsg(null);
+    try {
+      const res = await resetFullDatabase();
+      setResultMsg({
+        type: 'ok',
+        text: `✅ ${res.message} (${res.feeders_count} départs régénérés dont ${res.sheddable_feeders} délestables).`,
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setResultMsg({
+        type: 'err',
+        text: '❌ Erreur de réinitialisation: ' + (e.response?.data?.detail ?? 'Échec du serveur'),
+      });
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  return (
+    <div className="admin-section">
+      <div className="admin-section-header">
+        <div className="header-title-group">
+          <h3>Maintenance et Remise à Zéro (Factory Reset)</h3>
+        </div>
+      </div>
+
+      {resultMsg && (
+        <div className={`admin-msg ${resultMsg.type === 'ok' ? 'admin-msg-ok' : 'admin-msg-err'}`}>
+          {resultMsg.text}
+        </div>
+      )}
+
+      <div className="factory-reset-card">
+        <div className="factory-reset-header">
+          <div className="factory-reset-icon">⚠️</div>
+          <div>
+            <h4>Remise à zéro complète — État première utilisation</h4>
+            <p>
+              Cette fonction nettoie intégralement les tables d'exploitation et recharge la topologie nationale 
+              STEG standard (170 départs, 21 postes sources, 7 BCC, 2 CRC) générée par le moteur déterministe M1.
+            </p>
+          </div>
+        </div>
+
+        <div className="factory-reset-details">
+          <h5>Ce qui est réinitialisé :</h5>
+          <ul>
+            <li><strong>Ordres &amp; Plans :</strong> Suppression de tous les plans prévisionnels J-1, plans temps réel et ordres associés.</li>
+            <li><strong>Événements de délestage :</strong> Clôture et suppression de tous les délestages en cours ou passés.</li>
+            <li><strong>Réseau &amp; Départs :</strong> Rétablissement de l'état nominal de chaque départ (tous fermés, temps de repos remis à zéro).</li>
+            <li><strong>Journal d'Audit :</strong> Réinitialisation de la chaîne SHA-256 avec une nouvelle transaction de genèse certifiée.</li>
+            <li><strong>Comptes Utilisateurs :</strong> Rétablissement des 4 profils officiels (<code>admin</code>, <code>ahmed</code>, <code>crc_n</code>, <code>sana</code>) avec mot de passe <code>delestage123</code>.</li>
+          </ul>
+        </div>
+
+        <div className="factory-reset-actions">
+          <button
+            className="btn-danger-factory-reset"
+            onClick={handleReset}
+            disabled={resetting || !isAdmin}
+          >
+            {resetting ? '⏳ Réinitialisation en cours…' : '🗑️ Réinitialiser toute la base (État initial d\'usine)'}
+          </button>
+          {!isAdmin && (
+            <span className="reset-disclaimer">Accès réservé aux administrateurs ou dispatchers.</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main AdminPanel ─────────────────────────────────────────────────────────
 
 export default function AdminPanel() {
@@ -548,6 +645,7 @@ export default function AdminPanel() {
     { key: 'params', label: 'Paramètres' },
     { key: 'users',  label: 'Utilisateurs' },
     { key: 'audit',  label: 'Journal d\'Audit' },
+    { key: 'maintenance', label: 'Maintenance & Reset' },
   ];
 
   return (
@@ -570,7 +668,9 @@ export default function AdminPanel() {
         {tab === 'params' && <ParametersTab />}
         {tab === 'users'  && <UsersTab />}
         {tab === 'audit'  && <AuditTab />}
+        {tab === 'maintenance' && <MaintenanceTab />}
       </div>
     </div>
   );
 }
+

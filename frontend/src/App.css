@@ -258,6 +258,87 @@ header p {
   text-align: center;
 }
 
+/* Citizen direct access on login page */
+.login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 0.2rem 0;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.login-divider span {
+  padding: 0 0.75rem;
+  color: #a0aec0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.btn-citizen-direct {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 8px;
+  color: #166534;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.btn-citizen-direct:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(22, 101, 52, 0.12);
+}
+
+.btn-citizen-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-citizen-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  flex: 1;
+}
+
+.btn-citizen-text strong {
+  font-size: 0.9rem;
+  color: #14532d;
+  font-weight: 700;
+}
+
+.btn-citizen-text span {
+  font-size: 0.75rem;
+  color: #15803d;
+}
+
+.btn-citizen-arrow {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #16a34a;
+  transition: transform 0.2s ease;
+}
+
+.btn-citizen-direct:hover .btn-citizen-arrow {
+  transform: translateX(3px);
+}
+
 /* Demo accounts chip box */
 .demo-accounts-box {
   margin-top: 0.75rem;
@@ -4389,18 +4470,135 @@ header p {
 }
 
 .btn-reset-demo {
-  background: #e53e3e;
+  background: #718096;
   color: #fff;
   border: none;
   border-radius: 6px;
   padding: 0.6rem 1.2rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-reset-demo:hover {
+  background: #4a5568;
+}
+
+.btn-factory-reset {
   background: #c53030;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(197, 48, 48, 0.3);
+}
+
+.btn-factory-reset:hover {
+  background: #9b2c2c;
+  transform: translateY(-1px);
+}
+
+.btn-factory-reset:disabled,
+.btn-reset-demo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Factory reset card in Admin Panel */
+.factory-reset-card {
+  background: #fff5f5;
+  border: 1.5px solid #feb2b2;
+  border-radius: 10px;
+  padding: 1.75rem;
+  margin-top: 1rem;
+}
+
+.factory-reset-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.factory-reset-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.factory-reset-header h4 {
+  margin: 0 0 0.4rem;
+  color: #9b2c2c;
+  font-size: 1.15rem;
+}
+
+.factory-reset-header p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.factory-reset-details {
+  background: #fff;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.factory-reset-details h5 {
+  margin: 0 0 0.75rem;
+  color: #742a2a;
+  font-size: 0.92rem;
+}
+
+.factory-reset-details ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #2d3748;
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.factory-reset-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn-danger-factory-reset {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
+}
+
+.btn-danger-factory-reset:hover {
+  background: #c53030;
+  transform: translateY(-1px);
+}
+
+.btn-danger-factory-reset:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.reset-disclaimer {
+  font-size: 0.82rem;
+  color: #718096;
+  font-style: italic;
 }
 
 .simulator-status-bar {

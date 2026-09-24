@@ -746,6 +746,19 @@ export const resetSimulator = async (): Promise<BeatResult> => {
   return data;
 };
 
+export interface ResetDatabaseResult {
+  status: string;
+  message: string;
+  feeders_count: number;
+  sheddable_feeders: number;
+}
+
+export const resetFullDatabase = async (): Promise<ResetDatabaseResult> => {
+  const { data } = await apiClient.post<ResetDatabaseResult>('/admin/reset-database');
+  return data;
+};
+
+
 // ─── M12 Evaluation & Benchmarks ───────────────────────────────────────────────
 
 export interface BenchmarkScenario {

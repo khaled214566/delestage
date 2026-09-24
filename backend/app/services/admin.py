@@ -154,3 +154,89 @@ async def list_audit_logs(
     q = q.order_by(AuditLog.seq.desc()).offset((page - 1) * page_size).limit(page_size)
     rows = (await db.execute(q)).scalars().all()
     return total, list(rows)
+
+
+# ─── Factory Reset ─────────────────────────────────────────────────────────────
+
+async def reset_database_to_factory(
+    db: AsyncSession,
+    *,
+    actor_id: str = "1",
+    actor_name: str = "Administrator",
+) -> dict:
+    """
+    Completely reset the database to factory/day-1 state:
+    1. Truncate all non-system tables with CASCADE.
+    2. Re-create default demo accounts (admin, ahmed, crc_n, sana).
+    3. Re-seed full network grid topology and parameters via seed generator.
+    4. Write initial genesis audit log entry.
+    5. Broadcast WebSocket notification to trigger live UI updates.
+    """
+    from sqlalchemy import text, insert
+    from seed.generate import build_network, write_network, DEFAULT_SEED
+    from app.core.security import get_password_hash
+    from app.models.enums import UserRole
+    from app.models.users import User
+    from app.services.audit import log as audit_log
+    from app.core.websocket import ws_manager
+
+    # 1. Truncate all tables
+    await db.execute(text("""
+        TRUNCATE TABLE 
+            shed_event,
+            feeder_assignment,
+            allocation_node,
+            shed_order,
+            deficit_slot,
+            deficit_plan,
+            audit_log,
+            feeder_history,
+            feeder,
+            substation,
+            bcc,
+            crc,
+            parameters,
+            users
+        RESTART IDENTITY CASCADE;
+    """))
+
+    # 2. Re-insert default demo accounts (password: delestage123)
+    demo_hash = get_password_hash("delestage123")
+    demo_accounts = [
+        {"id": 1, "username": "admin", "name": "Administrator",   "role": UserRole.ADMIN,        "scope_type": "national", "scope_id": None, "hashed_password": demo_hash, "is_active": True},
+        {"id": 2, "username": "ahmed", "name": "Ahmed B.",        "role": UserRole.DISPATCHER,   "scope_type": "national", "scope_id": None, "hashed_password": demo_hash, "is_active": True},
+        {"id": 3, "username": "crc_n", "name": "Operateur CRC N", "role": UserRole.CRC_OPERATOR, "scope_type": "crc",      "scope_id": "CRC_N", "hashed_password": demo_hash, "is_active": True},
+        {"id": 4, "username": "sana",  "name": "Sana M.",         "role": UserRole.BCC_OPERATOR, "scope_type": "bcc",      "scope_id": "BCC1", "hashed_password": demo_hash, "is_active": True},
+    ]
+    await db.execute(insert(User), demo_accounts)
+
+    # 3. Re-seed synthetic network topology
+    net = build_network(seed=DEFAULT_SEED)
+    await db.run_sync(lambda sync_session: write_network(sync_session, net))
+
+    # 4. Write initial genesis audit log entry
+    await audit_log(
+        db,
+        actor_id=actor_id,
+        actor_name=actor_name,
+        action="PLATFORM_FACTORY_RESET",
+        entity_type="system",
+        entity_id="all",
+        payload={"message": "Plateforme réinitialisée à l'état initial usine (fresh installation)."},
+    )
+
+    await db.commit()
+
+    # 5. Broadcast to connected WebSocket clients
+    await ws_manager.broadcast({
+        "type": "FACTORY_RESET",
+        "message": "Base de données réinitialisée à l'état initial",
+    })
+
+    return {
+        "status": "ok",
+        "message": "La base de données a été entièrement réinitialisée à son état initial d'usine.",
+        "feeders_count": len(net.feeders),
+        "sheddable_feeders": len([f for f in net.feeders if f["priority"] != "P0"]),
+    }
+

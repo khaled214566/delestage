@@ -52,6 +52,7 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
     active_order = (await db.execute(order_query)).scalar_one_or_none()
 
     target_mw = 0.0
+    planned_assignments: dict[str, FeederAssignment] = {}
     planned_feeder_ids: set[str] = set()
     if active_order:
         node_query = (
