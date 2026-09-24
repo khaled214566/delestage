@@ -11,9 +11,11 @@ export default function Layout() {
       {/* Top Navbar matching mockup */}
       <header className="top-navbar">
         <div className="top-navbar-brand">
-          <span className="brand-logo-text">STEG</span>
-          <span className="brand-divider">—</span>
-          <span className="brand-title">Plateforme Nationale de Conduite du Délestage</span>
+          <img src="/steg-logo.png" alt="STEG" className="brand-logo-img" />
+          <div className="brand-text-group">
+            <span className="brand-logo-text">STEG</span>
+            <span className="brand-title">Plateforme Nationale de Conduite du Délestage</span>
+          </div>
         </div>
         <div className="top-navbar-user">
           {user ? (
