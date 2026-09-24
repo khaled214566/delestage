@@ -180,8 +180,9 @@ async def run_allocation(
 
     # Load system parameters
     params = await db.get(Parameters, 1)
-    rest_time_min = params.rest_time_min if params else 180
-    slot_size_min = params.slot_size_min if params else 30
+    rest_time_min = float(params.rest_time_min) if params else 180.0
+    slot_size_min = float(params.slot_size_min) if params else 30.0
+    max_duration_min = float(params.max_duration_min) if params else 45.0
 
     # Load all feeders with history (for fairness scoring)
     feeders_result = await db.execute(
@@ -192,11 +193,16 @@ async def run_allocation(
     for f in all_feeders:
         feeders_by_bcc.setdefault(f.bcc_id, []).append(f)
 
-    # Track virtual cumulative minutes across slots for rotation
+    # Track virtual cumulative minutes and rotation history across slots
     virtual_extra_minutes: dict[str, float] = {}  # feeder_id -> extra minutes from prior slots
-    # Track which feeders are assigned in each slot (cross-BCC uniqueness)
+    virtual_last_shed_end: dict[str, datetime] = {}  # feeder_id -> end time of last planned shedding
+    consecutive_shed_minutes: dict[str, float] = {}  # feeder_id -> continuous shed minutes without break
 
     for slot in deficit_slots:
+        slot_duration = (slot.slot_end - slot.slot_start).total_seconds() / 60.0
+        if slot_duration <= 0:
+            slot_duration = float(slot_size_min)
+
         assigned_in_slot: set[str] = set()
 
         # --- NATIONAL node ---
@@ -253,10 +259,19 @@ async def run_allocation(
                 eligible_candidates: list[FeederCandidate] = []
 
                 for feeder in bcc_feeders:
+                    # Continuous shedding check: cannot exceed max_duration_min without rotation
+                    is_consec = (virtual_last_shed_end.get(feeder.id) == slot.slot_start)
+                    prev_consec = consecutive_shed_minutes.get(feeder.id, 0.0) if is_consec else 0.0
+                    if prev_consec + slot_duration > max_duration_min:
+                        continue
+
                     hist = feeder.history
                     cum_min = float(hist.cumulative_minutes if hist else 0)
                     cum_min += virtual_extra_minutes.get(feeder.id, 0.0)
-                    last_shed_end = hist.last_shed_end if hist else None
+                    last_shed_end = virtual_last_shed_end.get(
+                        feeder.id,
+                        hist.last_shed_end if hist else None,
+                    )
 
                     if not is_eligible(
                         priority=feeder.priority,
@@ -264,11 +279,18 @@ async def run_allocation(
                         status=feeder.status,
                         last_shed_end=last_shed_end,
                         slot_start=slot.slot_start,
-                        rest_time_minutes=rest_time_min,
+                        rest_time_minutes=int(rest_time_min),
                         assigned_feeder_ids=assigned_in_slot,
                         feeder_id=feeder.id,
+                        allow_resting=True,
                     ):
                         continue
+
+                    if last_shed_end is not None:
+                        elapsed_rest = (slot.slot_start - last_shed_end).total_seconds() / 60.0
+                        rest_left = max(0.0, rest_time_min - elapsed_rest) if elapsed_rest < rest_time_min else 0.0
+                    else:
+                        rest_left = 0.0
 
                     weight = PRIORITY_WEIGHT.get(feeder.priority, 3)
                     score = compute_fairness_score(cum_min, feeder.priority)
@@ -283,6 +305,7 @@ async def run_allocation(
                         priority_weight=weight,
                         fairness_score=score,
                         zone_id=feeder.zone_id,
+                        rest_time_left_min=round(rest_left, 1),
                     ))
 
                 selection = select_feeders(float(bcc_target), eligible_candidates)
@@ -300,10 +323,19 @@ async def run_allocation(
                     )
                     db.add(assignment)
                     assigned_in_slot.add(fc.feeder_id)
-                    # Track virtual cumulative minutes for slot-aware rotation
+                    # Track virtual cumulative minutes and rotation history
                     virtual_extra_minutes[fc.feeder_id] = (
-                        virtual_extra_minutes.get(fc.feeder_id, 0.0) + slot_size_min
+                        virtual_extra_minutes.get(fc.feeder_id, 0.0) + slot_duration
                     )
+                    is_c = (virtual_last_shed_end.get(fc.feeder_id) == slot.slot_start)
+                    if is_c:
+                        consecutive_shed_minutes[fc.feeder_id] = (
+                            consecutive_shed_minutes.get(fc.feeder_id, 0.0) + slot_duration
+                        )
+                    else:
+                        consecutive_shed_minutes[fc.feeder_id] = slot_duration
+
+                    virtual_last_shed_end[fc.feeder_id] = slot.slot_end
 
                 bcc_node.achieved_mw = selection.achieved_mw
                 bcc_node.shortfall_mw = selection.shortfall_mw

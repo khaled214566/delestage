@@ -335,3 +335,93 @@ def test_greedy_cascading_when_p5_insufficient():
     selected_ids = [f.feeder_id for f in result.selected]
     assert selected_ids == ["F-P5", "F-P4"]
 
+
+def test_greedy_prefers_rested_over_resting_candidate():
+    # P5 feeder is currently resting (60 min left)
+    # P4 feeder is fully rested (0 min left)
+    # The rested P4 feeder must be selected over the resting P5 feeder to plan rotation!
+    p5_resting = FeederCandidate(
+        feeder_id="F-P5-RESTING",
+        name="Feeder-P5-Resting",
+        bcc_id="BCC1",
+        avg_mw=10.0,
+        priority=PriorityLevel.P5,
+        cumulative_minutes=30.0,
+        priority_weight=1,
+        fairness_score=30.0,
+        zone_id="Z-1",
+        rest_time_left_min=60.0,
+    )
+    p4_rested = FeederCandidate(
+        feeder_id="F-P4-RESTED",
+        name="Feeder-P4-Rested",
+        bcc_id="BCC1",
+        avg_mw=10.0,
+        priority=PriorityLevel.P4,
+        cumulative_minutes=0.0,
+        priority_weight=2,
+        fairness_score=0.0,
+        zone_id="Z-2",
+        rest_time_left_min=0.0,
+    )
+    result = select_feeders(target_mw=10.0, eligible=[p5_resting, p4_rested])
+    assert len(result.selected) == 1
+    assert result.selected[0].feeder_id == "F-P4-RESTED"
+
+
+def test_greedy_resting_fallback_picks_longest_rested():
+    # When all candidates are in rest window, pick the one that has rested the longest
+    # (smallest rest_time_left_min)
+    cand_short_rest = FeederCandidate(
+        feeder_id="F-1",
+        name="Feeder-1",
+        bcc_id="BCC1",
+        avg_mw=10.0,
+        priority=PriorityLevel.P5,
+        cumulative_minutes=30.0,
+        priority_weight=1,
+        fairness_score=30.0,
+        zone_id="Z-1",
+        rest_time_left_min=150.0,  # rested only 30 min out of 180
+    )
+    cand_long_rest = FeederCandidate(
+        feeder_id="F-2",
+        name="Feeder-2",
+        bcc_id="BCC1",
+        avg_mw=10.0,
+        priority=PriorityLevel.P5,
+        cumulative_minutes=30.0,
+        priority_weight=1,
+        fairness_score=30.0,
+        zone_id="Z-2",
+        rest_time_left_min=60.0,  # rested 120 min out of 180
+    )
+    result = select_feeders(target_mw=10.0, eligible=[cand_short_rest, cand_long_rest])
+    assert len(result.selected) == 1
+    assert result.selected[0].feeder_id == "F-2"
+
+
+def test_two_slot_rotation_selection():
+    # Slot 1: F1 and F2 (P5) are selected.
+    # In Slot 2 (after 30 min): F1 and F2 cannot be selected because they just shed
+    # for 30 min (would exceed 45 min continuous shed) and are resting.
+    # Slot 2 must rotate to F3 and F4 (P4).
+    f1 = FeederCandidate("F1", "F1", "BCC1", 10.0, PriorityLevel.P5, 0.0, 1, 0.0, "Z1", rest_time_left_min=0.0)
+    f2 = FeederCandidate("F2", "F2", "BCC1", 10.0, PriorityLevel.P5, 0.0, 1, 0.0, "Z1", rest_time_left_min=0.0)
+    f3 = FeederCandidate("F3", "F3", "BCC1", 10.0, PriorityLevel.P4, 0.0, 2, 0.0, "Z2", rest_time_left_min=0.0)
+    f4 = FeederCandidate("F4", "F4", "BCC1", 10.0, PriorityLevel.P4, 0.0, 2, 0.0, "Z2", rest_time_left_min=0.0)
+
+    # Slot 1 selection
+    slot1_res = select_feeders(20.0, eligible=[f1, f2, f3, f4])
+    assert [f.feeder_id for f in slot1_res.selected] == ["F1", "F2"]
+
+    # Slot 2 candidates: F1 and F2 are now resting, F3 and F4 are rested
+    f1_slot2 = FeederCandidate("F1", "F1", "BCC1", 10.0, PriorityLevel.P5, 30.0, 1, 30.0, "Z1", rest_time_left_min=180.0)
+    f2_slot2 = FeederCandidate("F2", "F2", "BCC1", 10.0, PriorityLevel.P5, 30.0, 1, 30.0, "Z1", rest_time_left_min=180.0)
+    f3_slot2 = FeederCandidate("F3", "F3", "BCC1", 10.0, PriorityLevel.P4, 0.0, 2, 0.0, "Z2", rest_time_left_min=0.0)
+    f4_slot2 = FeederCandidate("F4", "F4", "BCC1", 10.0, PriorityLevel.P4, 0.0, 2, 0.0, "Z2", rest_time_left_min=0.0)
+
+    slot2_res = select_feeders(20.0, eligible=[f1_slot2, f2_slot2, f3_slot2, f4_slot2])
+    # Must rotate to F3 and F4!
+    assert [f.feeder_id for f in slot2_res.selected] == ["F3", "F4"]
+

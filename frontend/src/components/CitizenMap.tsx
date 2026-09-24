@@ -341,8 +341,16 @@ export default function CitizenMap({
     setSearchQuery('');
     const map = mapRef.current;
     if (map && meta.center) {
-      map.panTo({ lat: meta.center[0], lng: meta.center[1] });
-      map.setZoom(TUNISIA_CAMERA.localityZoom);
+      const target = { lat: meta.center[0], lng: meta.center[1] };
+      if (typeof map.moveCamera === 'function') {
+        map.moveCamera({
+          center: target,
+          zoom: TUNISIA_CAMERA.localityZoom,
+        });
+      } else {
+        map.setCenter(target);
+        map.setZoom(TUNISIA_CAMERA.localityZoom);
+      }
     }
   };
 
