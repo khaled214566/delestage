@@ -398,18 +398,25 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
             </div>
           </div>
 
-          <div className="creneau-progress-section">
-            <div className="progress-labels">
-              <span>Décrotage réalisé : <strong>{activeNode.achieved_mw.toLocaleString('fr-FR')} MW</strong></span>
-              <span>Cible de délestage : <strong>{activeNode.target_mw.toLocaleString('fr-FR')} MW</strong></span>
-            </div>
-            <div className="progress-track">
-              <div 
-                className={`progress-fill ${activeNode.shortfall_mw === 0 ? 'fill-success' : 'fill-warning'}`}
-                style={{ width: `${getProgressPct(activeNode.achieved_mw, activeNode.target_mw)}%` }}
-              />
-            </div>
-          </div>
+          {(() => {
+            const creneauCoveragePct = getProgressPct(activeNode.achieved_mw, activeNode.target_mw);
+            return (
+              <>
+                <div className="creneau-progress-section">
+                  <div className="progress-labels">
+                    <span>Décrotage réalisé : <strong>{activeNode.achieved_mw.toLocaleString('fr-FR')} MW</strong></span>
+                    <span>Cible de délestage : <strong>{activeNode.target_mw.toLocaleString('fr-FR')} MW</strong></span>
+                  </div>
+                  <div className="progress-track">
+                    <div 
+                      className={`progress-fill ${creneauCoveragePct >= 100 ? 'fill-success' : 'fill-warning'}`}
+                      style={{ width: `${Math.min(100, creneauCoveragePct)}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
