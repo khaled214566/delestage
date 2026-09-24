@@ -27,6 +27,19 @@ def _priority_rank(priority: PriorityLevel | str) -> int:
     return PRIORITY_SHED_ORDER.get(priority, 99)
 
 
+def _feeder_sort_key(f: FeederCandidate) -> tuple:
+    """Sort key for feeder selection with rest compliance and priority tiering:
+    1. Fully rested feeders (rest_time_left_min <= 0) always precede feeders in rest window.
+    2. Among rested feeders: priority tier (P5 -> P1), then lowest fairness score, then id.
+    3. Among resting feeders (fallback): longest rested first (smallest rest_time_left_min),
+       then priority tier, then lowest fairness score, then id.
+    """
+    if f.rest_time_left_min <= 0:
+        return (0, 0.0, _priority_rank(f.priority), f.fairness_score, f.feeder_id)
+    else:
+        return (1, f.rest_time_left_min, _priority_rank(f.priority), f.fairness_score, f.feeder_id)
+
+
 @dataclass
 class SelectionResult:
     """Result of the greedy feeder selection for one BCC in one slot."""
@@ -45,8 +58,11 @@ def select_feeders(
     """Greedy feeder selection for a single BCC target.
     
     Algorithm:
-    1. Sort eligible feeders by priority tier ascending (P5 -> P1),
-       then by fairness_score ascending, then feeder_id for determinism.
+    1. Sort eligible feeders:
+       - Fully rested feeders (rest_time_left_min <= 0) first,
+         sorted by priority tier (P5 -> P1), then fairness_score ascending
+       - Resting feeders second, sorted by least remaining rest time (rested longest)
+       - feeder_id for determinism
     2. Pick feeders one by one until target is met or exceeded within tolerance
     3. When adding a feeder would overshoot beyond tolerance, check if
        adding it brings us closer to the target than not adding it
@@ -63,12 +79,7 @@ def select_feeders(
     if target_mw <= 0:
         return SelectionResult(target_mw=target_mw)
     
-    # Sort primarily by priority tier (P5 first down to P1),
-    # then fairness score ascending, then feeder_id for determinism
-    sorted_feeders = sorted(
-        eligible,
-        key=lambda f: (_priority_rank(f.priority), f.fairness_score, f.feeder_id),
-    )
+    sorted_feeders = sorted(eligible, key=_feeder_sort_key)
     
     selected: list[FeederCandidate] = []
     achieved = 0.0
