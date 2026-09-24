@@ -42,6 +42,7 @@ from app.services.admin import (
     list_audit_logs,
     list_users,
     patch_parameters,
+    reset_database_to_factory,
     toggle_user_active,
 )
 from app.services.audit import verify_chain
@@ -196,4 +197,18 @@ async def export_audit_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="audit_log.csv"'},
     )
+
+
+@router.post("/reset-database")
+async def reset_database(
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(_require_admin_or_dispatcher),
+):
+    """Factory reset: wipes all operational state, restores default users & re-seeds grid topology."""
+    return await reset_database_to_factory(
+        db,
+        actor_id=str(current.id),
+        actor_name=current.name,
+    )
+
 
