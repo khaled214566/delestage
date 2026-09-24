@@ -661,6 +661,60 @@ export const getCitizenStatus = async (): Promise<CitizenStatusResponse> => {
   return data;
 };
 
+// Completed shedding events (public-safe history) — GET /api/public/history.
+export interface CitizenHistoryEvent {
+  date: string;
+  locality: string;
+  region: string;
+  bcc_name: string;
+  started_at: string;
+  ended_at: string;
+  duration_min: number;
+  mw: number;
+}
+
+export interface CitizenHistoryDay {
+  day: string;
+  duration_min: number;
+}
+
+export interface CitizenHistoryResponse {
+  generated_at: string;
+  window_days: number;
+  total_events: number;
+  total_duration_min: number;
+  total_ens_mwh: number;
+  daily_series: CitizenHistoryDay[];
+  events: CitizenHistoryEvent[];
+}
+
+export const getCitizenHistory = async (days = 7): Promise<CitizenHistoryResponse> => {
+  const { data } = await apiClient.get<CitizenHistoryResponse>('/public/history', { params: { days } });
+  return data;
+};
+
+export interface CitizenPlannedOutage {
+  zone_id: string;
+  locality: string;
+  governorate: string;
+  bcc_id: string;
+  bcc_name: string;
+  starts_at: string;
+  ends_at: string;
+  duration_min: number;
+  planned_mw: number;
+}
+
+export interface CitizenScheduleResponse {
+  generated_at: string;
+  outages: CitizenPlannedOutage[];
+}
+
+export const getCitizenSchedule = async (): Promise<CitizenScheduleResponse> => {
+  const { data } = await apiClient.get<CitizenScheduleResponse>('/public/schedule');
+  return data;
+};
+
 // ─── M11 Simulator ─────────────────────────────────────────────────────────────
 
 export interface SimulatorStatus {
@@ -730,4 +784,4 @@ export const getGridFairnessMetrics = async (): Promise<GridFairnessMetrics> => 
   return data;
 };
 
-
+

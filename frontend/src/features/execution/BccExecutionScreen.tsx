@@ -128,7 +128,7 @@ export default function BccExecutionScreen() {
   const openMutation = useMutation({
     mutationFn: (payload: { feederId: string; mwActual: number; justification?: string }) =>
       confirmOpen({
-        order_id: dashboard?.order_id ?? 1, // Active order ID
+        order_id: dashboard!.order_id!,
         feeder_id: payload.feederId,
         mw_actual: payload.mwActual,
         justification: payload.justification,
@@ -177,6 +177,14 @@ export default function BccExecutionScreen() {
   };
 
   const handleOpenClick = (feeder: FeederExecutionItem) => {
+    if (!dashboard?.order_id) {
+      alert("❌ Aucun ordre de délestage actif n'est disponible. Allouez puis activez un ordre avant d'ouvrir un départ.");
+      return;
+    }
+    if (!feeder.is_eligible && !(feeder.rest_time_left_min && feeder.rest_time_left_min > 0)) {
+      alert(`❌ Ce départ ne peut pas être coupé : ${feeder.ineligibility_reason || 'départ non éligible'}.`);
+      return;
+    }
     const mw = editedMw[feeder.feeder_id] ?? feeder.avg_mw;
     // If feeder is in rest period (< 180 min), open justification dialog
     if (feeder.rest_time_left_min && feeder.rest_time_left_min > 0) {
@@ -249,9 +257,9 @@ export default function BccExecutionScreen() {
       {/* Top bar with Region Selector */}
       <div className="bcc-topbar">
         <div>
-          <h2>⚡ Poste de Conduite &amp; Manœuvres Terrain : {dashboard.bcc_name}</h2>
+          <h2>Poste de Conduite &amp; Télécommande Réseau : {dashboard.bcc_name}</h2>
           <p className="bcc-subtitle">
-            Saisie manuelle des ouvertures et rétablissements de départs MT (UC5 &amp; UC7)
+            Télécommande des ouvertures et rétablissements des départs moyenne tension (MT)
           </p>
         </div>
 
@@ -276,7 +284,7 @@ export default function BccExecutionScreen() {
       {/* KPI Stats */}
       <div className="kpi-grid">
         <div className="kpi-card">
-          <span className="kpi-title">Cible Régionale</span>
+          <span className="kpi-title">Consigne Régionale</span>
           <span className="kpi-value highlight-blue">{dashboard.target_mw.toFixed(1)} MW</span>
           <span className="kpi-subtext">Objectif Dispatching</span>
         </div>
@@ -311,7 +319,7 @@ export default function BccExecutionScreen() {
           color: '#2b6cb0',
           lineHeight: '1.5',
         }}>
-          ℹ️ <strong>Cible régionale à 0.0 MW ?</strong> Aucun quota de délestage n'est encore assigné à ce centre. Pour qu'une cible en MW (ex: 71 MW) soit attribuée et que des départs soient recommandés (badge violet), assurez-vous d'avoir cliqué sur <strong>« Lancer l'allocation »</strong> puis <strong>« ⚡ Activer »</strong> dans la page <Link to="/orders" style={{ color: '#2b6cb0', fontWeight: 600, textDecoration: 'underline' }}>Ordres de délestage ↗</Link>.
+          <strong>Consigne régionale à 0.0 MW :</strong> Aucun quota d'effacement n'est actuellement assigné à ce centre. Pour qu'une consigne en MW soit attribuée et que des départs soient recommandés à la coupure, un ordre doit être alloué puis activé dans la section <Link to="/orders" style={{ color: '#2b6cb0', fontWeight: 600, textDecoration: 'underline' }}>Ordres de délestage ↗</Link>.
         </div>
       )}
 
@@ -359,7 +367,7 @@ export default function BccExecutionScreen() {
                     onClick={() => handleRestoreClick(f)}
                     disabled={isRestoring}
                   >
-                    {isRestoring ? '⏳ Rétablissement...' : '🔌 Confirmer le Rétablissement'}
+                    {isRestoring ? 'Rétablissement en cours...' : 'Confirmer le rétablissement'}
                   </button>
                 </div>
               </div>
@@ -371,9 +379,9 @@ export default function BccExecutionScreen() {
       {/* Section 2: Départs disponibles et éligibles */}
       <div className="bcc-panel available-panel">
         <div className="panel-header-with-badge">
-          <h3>⚡ Départs Disponibles pour Délestage ({availableFeeders.length})</h3>
+          <h3>Départs Disponibles pour Délestage ({availableFeeders.length})</h3>
           <div className="sort-indicator-badge">
-            <span className="sort-star">★</span> <strong>Recommandés en premier</strong> · Tri décroissant <strong>P5 → P1</strong>
+            <strong>Recommandés en priorité</strong> · Tri par classe de priorité <strong>P5 → P1</strong>
             {plannedCount > 0 && <span className="planned-count-tag">{plannedCount} recommandés</span>}
           </div>
         </div>
@@ -381,6 +389,7 @@ export default function BccExecutionScreen() {
           {availableFeeders.map((f) => {
             const currentMw = editedMw[f.feeder_id] ?? f.avg_mw;
             const hasRestViolation = f.rest_time_left_min && f.rest_time_left_min > 0;
+            const isBlocked = !f.is_eligible && !hasRestViolation;
 
             return (
               <div
@@ -394,11 +403,10 @@ export default function BccExecutionScreen() {
                         type="button"
                         className="planned-badge"
                         onClick={() => setExplanationFeeder(f)}
-                        title="Cliquez pour afficher l'explication complète de cette recommandation"
+                        title="Consulter la justification technique de sélection"
                       >
-                        <span className="badge-icon-star">★</span>
                         <span className="badge-text">Recommandé</span>
-                        <span className="badge-icon-info">ℹ️</span>
+                        <span className="badge-icon-info">ℹ</span>
                       </button>
                     ) : (
                       <div className="card-top-placeholder" />
@@ -410,7 +418,7 @@ export default function BccExecutionScreen() {
                   <div className="card-identity-block">
                     <h4 className="card-feeder-name">{f.feeder_name}</h4>
                     <span className="card-substation">
-                      📍 District / Délégation : <strong>{f.feeder_name.replace('Départ ', '')}</strong> · {f.substation_name} ({f.feeder_id})
+                      District / Délégation : <strong>{f.feeder_name.replace('Départ ', '')}</strong> · {f.substation_name} ({f.feeder_id})
                     </span>
                   </div>
                 </div>
@@ -430,7 +438,12 @@ export default function BccExecutionScreen() {
                   </div>
                   {hasRestViolation && (
                     <div className="rest-warning-box">
-                      ⚠️ En repos ({f.rest_time_left_min} min restantes). Justification exigée.
+                      Départ en période de repos ({f.rest_time_left_min} min restantes). Justification requise.
+                    </div>
+                  )}
+                  {isBlocked && f.ineligibility_reason && (
+                    <div className="rest-warning-box">
+                      {f.ineligibility_reason}
                     </div>
                   )}
                 </div>
@@ -439,9 +452,10 @@ export default function BccExecutionScreen() {
                   <button
                     className="btn-large btn-open"
                     onClick={() => handleOpenClick(f)}
-                    disabled={openMutation.isPending}
+                    disabled={openMutation.isPending || isBlocked || !dashboard.order_id}
+                    title={!dashboard.order_id ? 'Aucun ordre actif' : f.ineligibility_reason || undefined}
                   >
-                    ⚡ Confirmer l'Ouverture du Disjoncteur
+                    Confirmer l'ouverture du disjoncteur
                   </button>
                 </div>
               </div>
@@ -452,7 +466,7 @@ export default function BccExecutionScreen() {
 
       {/* Section 3: Départs protégés P0 */}
       <div className="bcc-panel protected-panel">
-        <h3>🔒 Départs Prioritaires Protégés (P0 - Infrastructures Critiques &amp; Vitales)</h3>
+        <h3>Départs Protégés Non Délestables (P0 - Infrastructures Critiques)</h3>
         <p className="protected-help">
           Ces départs alimentent des hôpitaux, centres de secours ou stations de pompage vitales. La plateforme
           interdit formellement toute ouverture de disjoncteur sur ces circuits (Règle stricte P0).
@@ -512,10 +526,9 @@ export default function BccExecutionScreen() {
           <div className="modal-box explanation-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="explanation-modal-header">
               <div className="explanation-title-row">
-                <span className="explanation-icon">💡</span>
                 <div>
                   <h3 className="explanation-title">
-                    Pourquoi ce départ est-il recommandé ?
+                    Critères de Sélection du Départ
                   </h3>
                   <div className="explanation-sub">
                     <strong>{explanationFeeder.feeder_name}</strong> · {explanationFeeder.substation_name} ({explanationFeeder.feeder_id})
@@ -540,11 +553,11 @@ export default function BccExecutionScreen() {
                   borderColor: getPriorityExplanation(explanationFeeder.priority).badgeBorder,
                 }}
               >
-                ⭐ Priorité {explanationFeeder.priority}
+                Priorité {explanationFeeder.priority}
               </span>
-              <span className="pill-mw">⚡ {explanationFeeder.avg_mw.toFixed(1)} MW</span>
-              <span className="pill-target">🎯 Cible BCC : {dashboard.target_mw} MW</span>
-              <span className="pill-planned">✓ Planifié dans l'Ordre #{dashboard.order_id ?? 'Actif'}</span>
+              <span className="pill-mw">{explanationFeeder.avg_mw.toFixed(1)} MW</span>
+              <span className="pill-target">Consigne BCC : {dashboard.target_mw} MW</span>
+              <span className="pill-planned">Inscrit dans l'Ordre #{dashboard.order_id ?? 'Actif'}</span>
             </div>
 
             <div className="explanation-cards-list">
@@ -558,7 +571,7 @@ export default function BccExecutionScreen() {
                   {getPriorityExplanation(explanationFeeder.priority).desc}
                 </p>
                 <div className="point-card-note">
-                  ↳ <em>Règle STEG de délestage décroissant (P5 → P1)</em> : En coupant en premier lieu les départs <strong>P5</strong> (industriels/gros consommateurs), le système évite de priver d'électricité les ménages, écoles et zones urbaines (P3/P2/P1).
+                  ↳ <em>Règle STEG de délestage décroissant (P5 → P1)</em> : La priorité donnée aux départs <strong>P5</strong> (charges industrielles ou gros consommateurs) permet de préserver la desserte des zones résidentielles et des services publics essentiels.
                 </div>
               </div>
 
@@ -566,16 +579,16 @@ export default function BccExecutionScreen() {
               <div className="explanation-point-card">
                 <div className="point-card-header">
                   <span className="point-card-num">2</span>
-                  <h4>Algorithme d'Équité &amp; Rotation Équilibrée (Fairness Engine)</h4>
+                  <h4>Critère d'Équité &amp; Historique d'Interruption</h4>
                 </div>
                 <p className="point-card-desc">
-                  Temps de coupure cumulé aujourd'hui : <strong>{explanationFeeder.cumulative_minutes ?? 0} minutes</strong>.
+                  Temps d'interruption cumulé aujourd'hui : <strong>{explanationFeeder.cumulative_minutes ?? 0} minutes</strong>.
                   {explanationFeeder.fairness_score !== null && explanationFeeder.fairness_score !== undefined && (
-                    <> (Score d'équité calculé : <strong>{explanationFeeder.fairness_score.toFixed(2)}</strong>).</>
+                    <> (Indice de priorité rotation : <strong>{explanationFeeder.fairness_score.toFixed(2)}</strong>).</>
                   )}
                 </p>
                 <div className="point-card-note">
-                  ↳ <em>Justice territoriale</em> : Parmi tous les départs éligibles de même priorité ({explanationFeeder.priority}), ce départ fait partie de ceux ayant subi le moins d'interruptions récentes, évitant ainsi d'imposer des coupures répétées aux mêmes abonnés.
+                  ↳ <em>Répartition territoriale</em> : Parmi les départs de même classe ({explanationFeeder.priority}), cet ouvrage présente le temps de coupure récent le plus faible, prévenant ainsi les coupures répétées sur les mêmes usagers.
                 </div>
               </div>
 
@@ -583,20 +596,20 @@ export default function BccExecutionScreen() {
               <div className="explanation-point-card">
                 <div className="point-card-header">
                   <span className="point-card-num">3</span>
-                  <h4>Conformité Technique &amp; Règles de Sécurité Validées (100%)</h4>
+                  <h4>Vérification des Critères de Sécurité Réseau</h4>
                 </div>
                 <ul className="point-card-checklist">
                   <li>
-                    ✅ <strong>Temps de repos matériel (180 min) respecté</strong> :
-                    Le disjoncteur a suffisamment reposé depuis sa dernière manœuvre, évitant tout risque d'usure anormale ou de surchauffe.
+                    <strong>Temps de repos matériel (180 min) respecté</strong> :
+                    L'intervalle minimal entre manœuvres a été respecté sur l'organe de coupure.
                   </li>
                   <li>
-                    ✅ <strong>Aucune infrastructure critique P0</strong> :
-                    Cette ligne n'alimente aucun hôpital, caserne, clinique ou station d'eau potable majeure (SONEDE).
+                    <strong>Exclusion des charges prioritaires P0</strong> :
+                    Le départ n'alimente aucun établissement hospitalier, station de pompage ou infrastructure stratégique.
                   </li>
                   <li>
-                    ✅ <strong>Départ en service</strong> :
-                    Ligne sous tension et prête pour une manœuvre d'ouverture immédiate.
+                    <strong>Départ disponible en service</strong> :
+                    Ouvrage sous tension prêt pour manœuvre de télécommande.
                   </li>
                 </ul>
               </div>
@@ -605,10 +618,10 @@ export default function BccExecutionScreen() {
               <div className="explanation-point-card">
                 <div className="point-card-header">
                   <span className="point-card-num">4</span>
-                  <h4>Convergence Optimale vers le Quota Régional ({dashboard.bcc_name})</h4>
+                  <h4>Adéquation au Quota Régional ({dashboard.bcc_name})</h4>
                 </div>
                 <p className="point-card-desc">
-                  Avec une puissance nominale de <strong>{explanationFeeder.avg_mw.toFixed(1)} MW</strong>, ce départ s'ajuste idéalement pour combler le quota régional de <strong>{dashboard.target_mw} MW</strong> fixé par le Dispatching National, sans dépasser la marge de tolérance autorisée (+10%).
+                  Avec une puissance nominale de <strong>{explanationFeeder.avg_mw.toFixed(1)} MW</strong>, ce départ s'ajuste avec précision au quota régional de <strong>{dashboard.target_mw} MW</strong> assigné par le Dispatching National.
                 </p>
               </div>
             </div>
@@ -629,7 +642,7 @@ export default function BccExecutionScreen() {
                 }}
                 disabled={openMutation.isPending}
               >
-                ⚡ Confirmer l'Ouverture du Disjoncteur ({explanationFeeder.avg_mw.toFixed(1)} MW)
+                Confirmer l'ouverture du disjoncteur ({explanationFeeder.avg_mw.toFixed(1)} MW)
               </button>
             </div>
           </div>

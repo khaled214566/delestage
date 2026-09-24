@@ -84,7 +84,7 @@ class Feeder(Base):
     )
     critical: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     avg_mw: Mapped[float] = mapped_column(Float, nullable=False)
-    zone_id: Mapped[str] = mapped_column(String(30), nullable=False, index=True)  # e.g. "Z-LAC-2"
+    zone_id: Mapped[str] = mapped_column(String(30), nullable=False, index=True)  # e.g. "Z-TN1251" (CSV delegation pcode)
     status: Mapped[FeederStatus] = mapped_column(
         Enum(FeederStatus, name="feederstatus"), nullable=False, default=FeederStatus.CLOSED, index=True
     )

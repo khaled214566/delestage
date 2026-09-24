@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.audit as audit
+from app.services.zone_names import feeder_display_name
 from app.engine.allocator import CrcShare, BccWeight, allocate_to_crcs, allocate_to_bccs
 from app.engine.rules import (
     FeederCandidate, PRIORITY_WEIGHT, compute_fairness_score, is_eligible,
@@ -274,7 +275,7 @@ async def run_allocation(
 
                     eligible_candidates.append(FeederCandidate(
                         feeder_id=feeder.id,
-                        name=feeder.name,
+                        name=feeder_display_name(feeder),
                         bcc_id=feeder.bcc_id,
                         avg_mw=feeder.avg_mw,
                         priority=feeder.priority,

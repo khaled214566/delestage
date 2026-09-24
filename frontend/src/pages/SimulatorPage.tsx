@@ -59,34 +59,34 @@ export default function SimulatorPage() {
   const beats = [
     {
       num: 1,
-      title: 'Beat 1 : Plan J-1 (300 MW)',
-      desc: 'Prévision d’un déficit de pointe de 300 MW pour la tranche du soir. L’algorithme pré-alloue les quotas entre les 2 CRC et les 7 BCC.',
-      badge: 'J-1',
-      linkText: 'Voir Calcul du Déficit',
+      title: 'Scénario 1 : Prévision J-1 (Déficit de pointe 300 MW)',
+      desc: 'Déséquilibre prévisionnel de 300 MW pour la tranche de pointe du soir. Répartition hiérarchique des quotas entre les 2 CRC et les 7 BCC selon la méthode des plus forts restes.',
+      badge: 'Planification J-1',
+      linkText: 'Consulter le plan de déficit',
       linkUrl: '/deficit',
     },
     {
       num: 2,
-      title: 'Beat 2 : Hausse en Direct (+50 MW)',
-      desc: 'Le déficit passe subitement à 350 MW. Le système sélectionne et ouvre immédiatement 5 départs dans BCC1 en respectant l’équité.',
-      badge: 'Temps Réel',
-      linkText: 'Voir Monitoring Télémesure',
+      title: 'Scénario 2 : Aléa Temps Réel (+50 MW)',
+      desc: 'Survenance d\'un aléa réseau portant le déficit global à 350 MW. Déclenchement coordonné de l\'effacement d\'urgence avec sélection ordonnée des départs selon les priorités P5/P4.',
+      badge: 'Télémesure Temps Réel',
+      linkText: 'Consulter la télémesure',
       linkUrl: '/monitoring',
     },
     {
       num: 3,
-      title: 'Beat 3 : Alerte de Rotation (37 min)',
-      desc: 'Une ligne atteint 37 min de coupure (seuil 80% des 45 min). Une proposition de substitution avec conservation exacte de MW est générée.',
-      badge: 'Rotation M8',
-      linkText: 'Voir Conduite BCC',
+      title: 'Scénario 3 : Rotation Réglementaire de Charge (Seuil 80%)',
+      desc: 'Atteinte du seuil de pré-alerte de durée d\'interruption (36 min sur 45 min réglementaires). Proposition automatique d\'un départ de substitution avec maintien strict du bilan MW.',
+      badge: 'Rotation de Charge',
+      linkText: 'Accéder à la conduite BCC',
       linkUrl: '/bcc',
     },
     {
       num: 4,
-      title: 'Beat 4 : Preuve d’Audit SHA-256',
-      desc: 'Validation cryptographique de la traçabilité. Re-calcul intégral de la chaîne de hachage pour prouver l’absence totale d’altération.',
-      badge: 'Sécurité & Audit',
-      linkText: 'Voir Journal d’Audit',
+      title: 'Scénario 4 : Contrôle d\'Intégrité du Registre d\'Audit',
+      desc: 'Vérification cryptographique de la chaîne SHA-256 de traçabilité garantissant l\'intégrité absolue des ordres, manœuvres et dérogations d\'exploitation.',
+      badge: 'Audit & Conformité',
+      linkText: 'Consulter le registre d\'audit',
       linkUrl: '/admin',
     },
   ];
@@ -95,9 +95,9 @@ export default function SimulatorPage() {
     <div className="simulator-page">
       <div className="simulator-header">
         <div>
-          <h2>🎬 Simulateur de Scénario de Démonstration (M11)</h2>
+          <h2>Simulateur de Scénarios d'Exploitation Réseau</h2>
           <p className="simulator-subtitle">
-            Déroulement automatique en 4 temps du cycle complet de délestage d'urgence STEG
+            Reproduction séquentielle des phases opérationnelles de gestion du délestage tournant STEG
           </p>
         </div>
         <div className="simulator-top-actions">
@@ -106,7 +106,7 @@ export default function SimulatorPage() {
             onClick={handleReset}
             disabled={resetting}
           >
-            {resetting ? 'Réinitialisation…' : '🔄 Réinitialiser la Démo'}
+            {resetting ? 'Réinitialisation en cours…' : 'Réinitialiser la simulation'}
           </button>
         </div>
       </div>
@@ -131,7 +131,7 @@ export default function SimulatorPage() {
             <div key={beat.num} className={`beat-card ${isCurrent ? 'beat-active' : ''}`}>
               <div className="beat-card-header">
                 <span className="beat-badge">{beat.badge}</span>
-                <span className="beat-number">#{beat.num}</span>
+                <span className="beat-number">Scénario {beat.num}</span>
               </div>
               <h3>{beat.title}</h3>
               <p className="beat-desc">{beat.desc}</p>
@@ -142,7 +142,7 @@ export default function SimulatorPage() {
                   onClick={() => handleRunBeat(beat.num)}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Exécution en cours…' : `▶ Déclencher Beat ${beat.num}`}
+                  {isLoading ? 'Exécution en cours…' : `Exécuter le scénario ${beat.num}`}
                 </button>
                 <Link to={beat.linkUrl} className="btn-beat-link" target="_blank">
                   {beat.linkText} ↗
@@ -151,7 +151,7 @@ export default function SimulatorPage() {
 
               {result && (
                 <div className="beat-result-box">
-                  <div className="result-title">Résultat d'exécution :</div>
+                  <div className="result-title">Résultat de la simulation :</div>
                   <div className="result-msg">{result.message}</div>
                 </div>
               )}
@@ -161,13 +161,13 @@ export default function SimulatorPage() {
       </div>
 
       <div className="simulator-guide-card">
-        <h4>💡 Guide pour le Pitch du Jury</h4>
+        <h4>Protocole d'Exploitation du Simulateur Réseau</h4>
         <ol>
-          <li><strong>Beat 1 :</strong> Montrez le plan J-1 préparé par le Dispatching.</li>
-          <li><strong>Beat 2 :</strong> Cliquez sur Beat 2 puis basculez sur l'écran <strong>Monitoring</strong> (les graphiques s'animent en direct via WebSockets).</li>
-          <li><strong>Beat 3 :</strong> Montrez l'alerte Ambre/Rouge dans l'écran <strong>Conduite BCC</strong> et acceptez la rotation en 1-clic.</li>
-          <li><strong>Beat 4 :</strong> Montrez au jury la chaîne d'audit vérifiée sans aucune falsification possible.</li>
-          <li><strong>Portail Citoyen :</strong> Ouvrez le <Link to="/citizen" target="_blank" className="text-link">Portail Citoyen ↗</Link> pour prouver la transparence publique en temps réel.</li>
+          <li><strong>Scénario 1 (Planification J-1) :</strong> Consultation du plan d'effacement prévisionnel établi par le Dispatching National et validé pour les tranches de pointe.</li>
+          <li><strong>Scénario 2 (Ajustement temps réel) :</strong> Déclenchement de l'effacement d'urgence suite à un déficit imprévu et suivi instantané des flux sur l'écran <strong>Monitoring</strong>.</li>
+          <li><strong>Scénario 3 (Rotation de charge) :</strong> Traitement de la pré-alerte réglementaire dans l'écran <strong>Conduite BCC</strong> avec validation de la substitution de départs.</li>
+          <li><strong>Scénario 4 (Traçabilité &amp; Audit) :</strong> Exécution du contrôle d'intégrité de la chaîne cryptographique certifiant la conformité du journal d'exploitation.</li>
+          <li><strong>Supervision publique :</strong> Consultation du <Link to="/citizen" target="_blank" className="text-link">Portail public citoyen ↗</Link> pour attester de la diffusion transparente de l'état du réseau en temps réel.</li>
         </ol>
       </div>
     </div>

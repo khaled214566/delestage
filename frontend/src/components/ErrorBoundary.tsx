@@ -27,7 +27,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div style={{ padding: '40px', textAlign: 'center', background: '#fff', borderRadius: '8px', margin: '20px' }}>
-          <h2 style={{ color: '#e53e3e' }}>⚠️ Une erreur est survenue sur cette vue</h2>
+          <h2 style={{ color: '#e53e3e' }}>Une erreur est survenue sur cette vue</h2>
           <p style={{ color: '#718096', margin: '15px 0' }}>
             {this.state.error?.message || 'Erreur inattendue de rendu.'}
           </p>
@@ -38,7 +38,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               window.location.reload();
             }}
           >
-            🔄 Recharger la page
+            Recharger la page
           </button>
         </div>
       );

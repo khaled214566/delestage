@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event import ShedEvent
 from app.models.hierarchy import Feeder
-from app.models.enums import EventStatus, PriorityLevel
+from app.models.deficit import DeficitPlan, DeficitSlot
+from app.models.order import AllocationNode, FeederAssignment, ShedOrder
+from app.models.enums import DeficitPlanStatus, EventStatus, OrderStatus, PriorityLevel
+from app.services.zone_names import delegation_display_name, feeder_display_name
 
 
 BCC_METADATA = {
@@ -97,7 +100,7 @@ async def get_citizen_view(db: AsyncSession) -> dict:
 
         # Track specific delegation and zone ID
         zid = feeder.zone_id.removeprefix("Z-")
-        clean_del_name = feeder.name.removeprefix("Départ ").strip()
+        clean_del_name = delegation_display_name(feeder)
         all_shedding_zone_ids.append(zid)
         all_shedding_delegations.append(clean_del_name)
 
@@ -118,7 +121,7 @@ async def get_citizen_view(db: AsyncSession) -> dict:
             "alarm_level": event.get_alarm_level(45.0, now).value,
             "duration_min": int(duration),
             "feeders_affected": 1,
-            "feeder_name": feeder.name,
+            "feeder_name": feeder_display_name(feeder),
             "delegation": clean_del_name,
             "zone_id": zid,
             "mw": event.mw_actual,
@@ -156,4 +159,124 @@ async def get_citizen_view(db: AsyncSession) -> dict:
         "shedding_zone_ids": list(set(all_shedding_zone_ids)),
         "shedding_delegations": list(set(all_shedding_delegations)),
         "zones": zone_list,
+    }
+
+
+async def get_citizen_history(db: AsyncSession, days: int = 7, limit: int = 60) -> dict:
+    """Return a public-safe log of *completed* shedding events.
+
+    Only closed events on non-P0 feeders are exposed — no feeder IDs, no
+    critical-site data. Includes a per-day cumulative-duration series for the
+    public transparency chart and window totals. Read-only; touches no
+    operational state.
+    """
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=days)
+
+    stmt = (
+        select(ShedEvent, Feeder)
+        .join(Feeder, ShedEvent.feeder_id == Feeder.id)
+        .where(
+            and_(
+                ShedEvent.status == EventStatus.CLOSED,
+                ShedEvent.close_time.is_not(None),
+                ShedEvent.close_time >= window_start,
+                Feeder.priority != PriorityLevel.P0,
+            )
+        )
+        .order_by(ShedEvent.close_time.desc())
+    )
+    rows = (await db.execute(stmt)).all()
+
+    events: list[dict] = []
+    total_duration_min = 0.0
+    total_ens_mwh = 0.0
+    # Cumulative shed duration per calendar day (UTC) for the chart.
+    per_day: dict[str, float] = {}
+
+    for event, feeder in rows:
+        if not event.close_time or not event.open_time:
+            continue
+        duration = event.compute_duration()
+        meta = BCC_METADATA.get(feeder.bcc_id, {
+            "display_name": f"Centre {feeder.bcc_id}",
+            "region": "National",
+        })
+        day_key = event.close_time.date().isoformat()
+        per_day[day_key] = round(per_day.get(day_key, 0.0) + duration, 1)
+        total_duration_min += duration
+        total_ens_mwh += event.ens_mwh or 0.0
+
+        if len(events) < limit:
+            events.append({
+                "date": event.open_time.date().isoformat(),
+                "locality": delegation_display_name(feeder),
+                "region": meta.get("region", "National"),
+                "bcc_name": meta.get("display_name", feeder.bcc_id),
+                "started_at": event.open_time.isoformat(),
+                "ended_at": event.close_time.isoformat(),
+                "duration_min": int(round(duration)),
+                "mw": round(event.mw_actual, 1),
+            })
+
+    # Dense daily series across the whole window (fills quiet days with 0).
+    daily_series = []
+    for offset in range(days - 1, -1, -1):
+        day = (now - timedelta(days=offset)).date().isoformat()
+        daily_series.append({"day": day, "duration_min": round(per_day.get(day, 0.0), 1)})
+
+    return {
+        "generated_at": now.isoformat(),
+        "window_days": days,
+        "total_events": len(rows),
+        "total_duration_min": int(round(total_duration_min)),
+        "total_ens_mwh": round(total_ens_mwh, 2),
+        "daily_series": daily_series,
+        "events": events,
+    }
+
+
+async def get_citizen_schedule(db: AsyncSession) -> dict:
+    """Return only validated future outage slots safe for public display."""
+    now = datetime.now(timezone.utc)
+    stmt = (
+        select(FeederAssignment, Feeder, DeficitSlot, DeficitPlan)
+        .join(Feeder, FeederAssignment.feeder_id == Feeder.id)
+        .join(AllocationNode, FeederAssignment.node_id == AllocationNode.id)
+        .join(ShedOrder, AllocationNode.order_id == ShedOrder.id)
+        .join(DeficitSlot, FeederAssignment.slot_id == DeficitSlot.id)
+        .join(DeficitPlan, ShedOrder.plan_id == DeficitPlan.id)
+        .where(
+            ShedOrder.status.in_([OrderStatus.VALIDATED, OrderStatus.ACTIVE]),
+            DeficitPlan.status == DeficitPlanStatus.VALIDATED,
+            DeficitSlot.slot_end > now,
+            Feeder.priority != PriorityLevel.P0,
+        )
+        .order_by(DeficitSlot.slot_start, Feeder.zone_id)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    outages = []
+    seen: set[tuple[int, str]] = set()
+    for assignment, feeder, slot, plan in rows:
+        key = (slot.id, feeder.zone_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        zone_id = feeder.zone_id.removeprefix("Z-")
+        outages.append({
+            "zone_id": zone_id,
+            "locality": delegation_display_name(feeder),
+            "governorate": BCC_METADATA.get(feeder.bcc_id, {}).get("governorates", feeder.bcc_id),
+            "bcc_id": feeder.bcc_id,
+            "bcc_name": BCC_METADATA.get(feeder.bcc_id, {}).get("display_name", feeder.bcc_id),
+            "starts_at": slot.slot_start.isoformat(),
+            "ends_at": slot.slot_end.isoformat(),
+            "duration_min": max(0, int((slot.slot_end - slot.slot_start).total_seconds() / 60)),
+            "planned_mw": round(float(assignment.assigned_mw), 1),
+        })
+
+    return {
+        "generated_at": now.isoformat(),
+        "outages": outages,
     }

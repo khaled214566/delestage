@@ -36,21 +36,21 @@ export default function EvaluationPage() {
     <div className="evaluation-page">
       <div className="evaluation-header">
         <div>
-          <h2>📊 Évaluation, Benchmarks &amp; Indices d'Équité (M12)</h2>
+          <h2>Indicateurs de Performance &amp; Évaluation d'Équité</h2>
           <p className="evaluation-subtitle">
-            Démonstration quantitative de la supériorité de l'optimiseur intelligent sur les approches classiques
+            Analyse quantitative de l'équité territoriale, du respect des priorités critiques et de la continuité de service
           </p>
         </div>
         <div className="eval-controls">
-          <label>Horizon de simulation :</label>
+          <label>Horizon d'analyse :</label>
           <select value={days} onChange={e => setDays(+e.target.value)}>
             <option value={3}>3 jours</option>
-            <option value={7}>7 jours (Standard Démo)</option>
+            <option value={7}>7 jours (Période standard)</option>
             <option value={14}>14 jours</option>
             <option value={30}>30 jours (1 mois)</option>
           </select>
           <button className="btn-eval-refresh" onClick={load} disabled={loading}>
-            {loading ? 'Calcul en cours…' : '🔄 Recalculer'}
+            {loading ? 'Calcul en cours…' : 'Actualiser les indicateurs'}
           </button>
         </div>
       </div>
@@ -62,7 +62,7 @@ export default function EvaluationPage() {
           <span className="eval-card-val text-green">
             {metrics ? metrics.live_gini_index.toFixed(3) : '…'}
           </span>
-          <span className="eval-card-sub">0.0 = Équité parfaite | 1.0 = Inégalité max</span>
+          <span className="eval-card-sub">0.0 = Équité parfaite | 1.0 = Disparité maximale</span>
         </div>
 
         <div className="eval-card">
@@ -70,7 +70,7 @@ export default function EvaluationPage() {
           <span className="eval-card-val text-blue">
             {metrics?.p0_protected_count ?? 0} départs
           </span>
-          <span className="eval-card-sub">Hôpitaux, eau potable (0 coupures)</span>
+          <span className="eval-card-sub">Santé, eau potable et sécurité (0 coupure)</span>
         </div>
 
         <div className="eval-card">
@@ -78,7 +78,7 @@ export default function EvaluationPage() {
           <span className="eval-card-val text-dark">
             {metrics?.total_ens_mwh ?? 0} MWh
           </span>
-          <span className="eval-card-sub">Cumul historique sur le réseau</span>
+          <span className="eval-card-sub">Cumul sur la période observée</span>
         </div>
 
         <div className="eval-card">
@@ -86,26 +86,26 @@ export default function EvaluationPage() {
           <span className="eval-card-val text-amber">
             {metrics?.total_rotations ?? 0}
           </span>
-          <span className="eval-card-sub">Manœuvres de substitution équitables</span>
+          <span className="eval-card-sub">Manœuvres de substitution exécutées</span>
         </div>
       </div>
 
       {/* Comparative Benchmark Table */}
       <div className="eval-table-container">
         <div className="table-header-box">
-          <h3>🔬 Benchmark Comparatif sur {days} jours de simulation (170 alimentateurs)</h3>
-          <span className="badge-highlight">Preuve Scientifique &amp; Algorithmique</span>
+          <h3>Comparatif des Méthodes d'Affectation sur {days} jours (170 alimentateurs)</h3>
+          <span className="badge-highlight">Évaluation comparative des algorithmes</span>
         </div>
 
         <table className="benchmark-table">
           <thead>
             <tr>
-              <th>Moteur Testé</th>
+              <th>Méthode d'affectation</th>
               <th>Indice de Gini (Équité)</th>
               <th>Violations P0 (Critiques)</th>
               <th>Durée Max / Ligne</th>
               <th>Respect Cible (MW)</th>
-              <th>Avantage Équité</th>
+              <th>Amélioration Gini</th>
             </tr>
           </thead>
           <tbody>
@@ -124,16 +124,16 @@ export default function EvaluationPage() {
                   </td>
                   <td className="metric-cell">
                     {sc.p0_violations === 0 ? (
-                      <span className="violation-zero">✅ 0 violation</span>
+                      <span className="violation-zero">0 (Conforme)</span>
                     ) : (
-                      <span className="violation-bad">❌ {sc.p0_violations} coupures</span>
+                      <span className="violation-bad">{sc.p0_violations} coupures non conformes</span>
                     )}
                   </td>
                   <td className="metric-cell font-mono">{sc.max_duration_min} min</td>
                   <td className="metric-cell font-mono">{sc.target_achievement_pct}%</td>
                   <td className="metric-cell advantage-cell">
                     {isIntelligent ? (
-                      <span className="advantage-pill">+{sc.fairness_advantage_pct}% plus équitable</span>
+                      <span className="advantage-pill">+{sc.fairness_advantage_pct}% d'amélioration</span>
                     ) : (
                       <span className="text-muted">Référence</span>
                     )}
@@ -147,16 +147,16 @@ export default function EvaluationPage() {
 
       {/* Analytical Takeaway Card */}
       <div className="eval-insights-card">
-        <h4>📌 Conclusions Clés pour l'Exploitation STEG</h4>
+        <h4>Synthèse Technique pour l'Exploitation Réseau</h4>
         <ul>
           <li>
-            <strong>Zéro Violation P0 Garanti :</strong> Contrairement aux sélections manuelles ou séquentielles qui coupent par erreur des charges prioritaires lors des pointes critiques, la plateforme filtre mathématiquement et infailliblement les installations vitales.
+            <strong>Protection stricte des infrastructures critiques (P0) :</strong> Verrouillage automatique des départs alimentant les établissements hospitaliers, stations de pompage (SONEDE) et centres de sécurité civile, interdisant toute coupure en délestage manuel tournant.
           </li>
           <li>
-            <strong>Réduction Massive des Inégalités :</strong> L'indice de Gini passe de <strong>0.875</strong> (concentration des coupures sur les mêmes zones) à <strong>0.036</strong> grâce au système de pondération inverse (P5 à P1) et à la rotation obligatoire sous 45 min.
+            <strong>Répartition équitable et maîtrise de la durée d'interruption :</strong> Amélioration significative de l'indice de Gini grâce à la rotation cyclique sous le seuil réglementaire de 45 minutes et à l'arbitrage par historique cumulé d'effacement.
           </li>
           <li>
-            <strong>Conservation de Puissance :</strong> Le moteur d'optimisation garantit que chaque délestage et rotation conserve exactement les mégawatts cibles requis par le Dispatching National.
+            <strong>Maintien strict de la consigne de puissance :</strong> Respect rigoureux des quotas d'effacement fixés par le Dispatching National lors de chaque cycle de délestage et de manœuvre de substitution.
           </li>
         </ul>
       </div>

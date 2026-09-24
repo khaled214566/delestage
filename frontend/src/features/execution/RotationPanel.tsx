@@ -147,7 +147,6 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
       {autoNotification && (
         <div className="auto-rotation-notification">
           <div className="auto-notif-content">
-            <span className="notif-icon">🛡️</span>
             <span>{autoNotification}</span>
           </div>
           <button className="btn-close-notif" onClick={() => setAutoNotification(null)}>✕</button>
@@ -156,28 +155,27 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
 
       {/* Safety Auto-rotation active banner */}
       <div className="auto-rotation-guard-banner">
-        <span className="guard-icon">🛡️</span>
         <div className="guard-text">
           <div className="guard-title">
-            Rétablissement &amp; Tournage Automatique de Sécurité : <span className="guard-status-active">ACTIF</span>
+            Rotation Réglementaire de Charge : <span className="guard-status-active">SURVEILLANCE ACTIVE</span>
           </div>
           <div className="guard-desc">
-            • <strong>36 min (Orange) :</strong> Pré-alerte d'équité — l'opérateur peut ajuster ou anticiper la rotation manuellement.<br />
-            • <strong>45 min (Seuil réglementaire) :</strong> Si aucune action manuelle n'est réalisée, le système rétablit automatiquement le départ et bascule la coupure sur le départ équivalent recommandé.
+            • <strong>36 min :</strong> Pré-alerte d'équité — anticipation possible d'une substitution manuelle par l'opérateur.<br />
+            • <strong>45 min (Seuil réglementaire) :</strong> En l'absence d'action manuelle, substitution automatique de la ligne délestée par le départ équivalent recommandé.
           </div>
         </div>
       </div>
 
       <div className="rotation-alert-header">
         <div className="rotation-title-area">
-          <span className="alert-badge-pulse">⚠️ ALERTE ROTATION (UC6)</span>
+          <span className="alert-badge-pulse">ALERTE ROTATION DE CHARGE</span>
           <h3>
             {proposals.length} départ{proposals.length > 1 ? 's ont' : ' a'} atteint le seuil de rotation (&ge; 36 min)
           </h3>
         </div>
         <p className="rotation-subtitle">
-          Pour respecter la limite réglementaire de 45 minutes et préserver l'équité, basculez la coupure vers un départ
-          équivalent en 1 clic (conservation stricte des MW).
+          Afin de respecter la limite réglementaire de 45 minutes et préserver l'équité territoriale, basculez la coupure vers un départ
+          équivalent en puissance.
         </p>
       </div>
 
@@ -223,23 +221,22 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
 
                 <div className={`auto-countdown-badge ${isOverdue ? 'critical' : 'warning'}`}>
                   {isOverdue ? (
-                    <span>⚡ <strong>45 min atteintes :</strong> Rétablissement automatique déclenché...</span>
+                    <span><strong>Seuil de 45 min atteint :</strong> Substitution automatique engagée...</span>
                   ) : (
-                    <span>⏳ Bascule auto dans : <strong>{formatRemaining(p.open_time, p.max_duration_minutes)}</strong> (si non acquitté)</span>
+                    <span>Délai avant rotation réglementaire : <strong>{formatRemaining(p.open_time, p.max_duration_minutes)}</strong></span>
                   )}
                 </div>
               </div>
 
               {/* Center divider: Swap symbol */}
               <div className="rotation-swap-divider">
-                <span className="swap-icon">🔄</span>
-                <span className="swap-text">Bascule</span>
+                <span className="swap-text">Substitution</span>
               </div>
 
               {/* Right Column: Recommended Replacement */}
               <div className="rotation-section incoming-box">
                 <div className="incoming-header-row">
-                  <span className="section-label">REMPLAÇANT RECOMMANDÉ</span>
+                  <span className="section-label">DÉPART DE SUBSTITUTION RECOMMANDÉ</span>
                   {allOptions.length > 1 && (
                     <select
                       className="candidate-selector"
@@ -304,7 +301,7 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
                   onClick={() => handleExecuteClick(p)}
                   disabled={!currentCandidate || rotationMutation.isPending}
                 >
-                  ⚡ Exécuter la Rotation
+                  Exécuter la rotation
                   <span className="btn-subtext">Ouverture puis Rétablissement</span>
                 </button>
               </div>
@@ -317,7 +314,7 @@ export default function RotationPanel({ bccId, showEmptyNotice = false }: Rotati
       {activeJustification && (
         <div className="modal-backdrop">
           <div className="modal-box">
-            <h3>⚠️ Dérogation de Temps de Repos - Rotation</h3>
+            <h3>Dérogation de Temps de Repos - Rotation</h3>
             <p>
               Le départ de remplacement <strong>{activeJustification.candidate.feeder_name}</strong> est encore en
               période de repos obligatoire (<strong>{activeJustification.candidate.rest_time_left_min} min</strong> restantes).

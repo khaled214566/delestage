@@ -11,9 +11,11 @@ export default function Layout() {
       {/* Top Navbar matching mockup */}
       <header className="top-navbar">
         <div className="top-navbar-brand">
-          <span className="brand-logo-text">STEG</span>
-          <span className="brand-divider">—</span>
-          <span className="brand-title">Gestion Intelligente du Délestage Platform</span>
+          <img src="/steg-logo.png" alt="STEG" className="brand-logo-img" />
+          <div className="brand-text-group">
+            <span className="brand-logo-text">STEG</span>
+            <span className="brand-title">Plateforme Nationale de Conduite du Délestage</span>
+          </div>
         </div>
         <div className="top-navbar-user">
           {user ? (
@@ -81,7 +83,7 @@ export default function Layout() {
                 <circle cx="12" cy="12" r="10"></circle>
                 <polygon points="10 8 16 12 10 16 10 8"></polygon>
               </svg>
-              Simulateur Démo
+              Simulateur réseau
             </NavLink>
             <NavLink to="/evaluation" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
               <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -89,7 +91,7 @@ export default function Layout() {
                 <line x1="12" y1="20" x2="12" y2="4"></line>
                 <line x1="6" y1="20" x2="6" y2="14"></line>
               </svg>
-              Évaluation & Benchmarks
+              Indicateurs &amp; Performance
             </NavLink>
             <NavLink to="/citizen" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} target="_blank">
               <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -97,7 +99,7 @@ export default function Layout() {
                 <line x1="2" y1="12" x2="22" y2="12"></line>
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
               </svg>
-              Portail Citoyen ↗
+              Portail public citoyen ↗
             </NavLink>
           </nav>
         </aside>
