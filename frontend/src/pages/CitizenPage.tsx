@@ -155,10 +155,10 @@ export default function CitizenPage() {
       <header className="pc-header">
         <div className="pc-header-inner">
           <div className="pc-brand">
-            <span className="pc-brand-mark">STEG</span>
+            <img src="/steg-logo.png" alt="STEG" className="pc-brand-logo" />
             <div className="pc-brand-text">
               <h1>État du réseau électrique</h1>
-              <p>Information publique sur les délestages — Tunisie</p>
+              <p>Information publique sur les délestages — STEG Tunisie</p>
             </div>
           </div>
           <div className="pc-header-actions">

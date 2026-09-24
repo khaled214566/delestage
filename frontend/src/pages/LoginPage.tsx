@@ -52,6 +52,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <form className="login-form" onSubmit={handleSubmit}>
+        <img src="/steg-logo.png" alt="STEG" className="login-logo" />
         <h1>Plateforme Nationale de Délestage</h1>
         <p className="login-sub">Société Tunisienne de l'Électricité et du Gaz (STEG)</p>
 
