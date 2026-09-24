@@ -53,16 +53,16 @@ function ParametersTab() {
     <div className="admin-section">
       <div className="admin-section-header">
         <div className="header-title-group">
-          <h3>⚙️ Paramètres Système</h3>
+          <h3>Paramètres Système</h3>
           {!isAdmin && (
             <span className="badge-readonly" title="Seuls les administrateurs peuvent modifier les paramètres">
-              🔒 Lecture seule (Accès réservé ADMIN)
+              Lecture seule (Accès réservé ADMIN)
             </span>
           )}
         </div>
         {!editing && isAdmin && (
           <button className="btn-edit" onClick={() => { setEditing(true); setMsg(''); }}>
-            ✏️ Modifier
+            Modifier
           </button>
         )}
       </div>
@@ -300,10 +300,10 @@ function UsersTab() {
                 disabled
                 value={
                   form.scope_type === 'national'
-                    ? '🌐 National (Automatique)'
+                    ? 'National (Automatique)'
                     : form.scope_type === 'crc'
-                    ? '🗺️ CRC Régional (Automatique)'
-                    : '⚡ BCC Local (Automatique)'
+                    ? 'CRC Régional (Automatique)'
+                    : 'BCC Local (Automatique)'
                 }
                 style={{ background: '#f8fafc', color: '#4a5568', cursor: 'not-allowed', fontWeight: 500 }}
               />
@@ -337,7 +337,7 @@ function UsersTab() {
           </div>
           <div className="admin-actions">
             <button className="btn-save" onClick={handleCreate} disabled={creating}>
-              {creating ? 'Création…' : '✅ Créer'}
+              {creating ? 'Création…' : 'Créer'}
             </button>
           </div>
         </div>
@@ -452,14 +452,14 @@ function AuditTab() {
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h3>📋 Journal d'Audit (SHA-256)</h3>
+        <h3>Journal d'Audit et Traçabilité (SHA-256)</h3>
         <div className="audit-toolbar">
           <input placeholder="Filtrer action…" value={actionFilter}
             onChange={e => { setActionFilter(e.target.value); setPage(1); }} />
           <input placeholder="Filtrer acteur…" value={actorFilter}
             onChange={e => { setActorFilter(e.target.value); setPage(1); }} />
           <button className="btn-verify" onClick={handleVerify} disabled={verifying} title="Vérifier l'intégrité cryptographique SHA-256 de toute la chaîne">
-            {verifying ? '🔐 Vérification…' : '🔐 Vérifier la chaîne'}
+            {verifying ? 'Vérification…' : 'Vérifier la chaîne'}
           </button>
           <button
             className="btn-export"
@@ -467,27 +467,27 @@ function AuditTab() {
             disabled={exporting}
             title="Télécharger l'intégralité du journal d'audit au format tableur CSV"
           >
-            {exporting ? '⏳ Téléchargement…' : '⬇ Exporter CSV'}
+            {exporting ? 'Téléchargement…' : 'Exporter CSV'}
           </button>
         </div>
       </div>
 
       <div className="audit-help-box">
         <div className="help-row">
-          <span className="help-badge">🔐 Vérifier la chaîne</span>
-          <span>Re-calcule mathématiquement toutes les empreintes SHA-256 depuis seq=1 pour certifier l'absence d'altération en base.</span>
+          <span className="help-badge">Vérifier la chaîne</span>
+          <span>Contrôle séquentiel des empreintes SHA-256 depuis le bloc initial (seq=1) pour attester de la non-altération du registre.</span>
         </div>
         <div className="help-row">
-          <span className="help-badge">⬇ Exporter CSV</span>
-          <span>Enregistre toutes les entrées filtrées dans un fichier <code>.csv</code> structuré et directement ouvrable sous Excel.</span>
+          <span className="help-badge">Exporter CSV</span>
+          <span>Exporte les enregistrements sélectionnés au format CSV pour archivage et audit réglementaire.</span>
         </div>
       </div>
 
       {verifyResult && (
         <div className={`chain-verify-result ${verifyResult.ok ? 'chain-ok' : 'chain-broken'}`}>
           {verifyResult.ok
-            ? `✅ Chaîne intacte — ${verifyResult.total_checked} enregistrements vérifiés`
-            : `❌ Chaîne corrompue à seq=${verifyResult.broken_at_seq} (${verifyResult.total_checked} vérifiés avant rupture)`}
+            ? `Chaîne intacte — ${verifyResult.total_checked} enregistrements vérifiés avec succès`
+            : `Chaîne compromise à seq=${verifyResult.broken_at_seq} (${verifyResult.total_checked} enregistrements vérifiés avant rupture)`}
         </div>
       )}
 
@@ -545,16 +545,16 @@ export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>('params');
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'params', label: '⚙️ Paramètres' },
-    { key: 'users',  label: '👥 Utilisateurs' },
-    { key: 'audit',  label: '📋 Journal Audit' },
+    { key: 'params', label: 'Paramètres' },
+    { key: 'users',  label: 'Utilisateurs' },
+    { key: 'audit',  label: 'Journal d\'Audit' },
   ];
 
   return (
     <div className="admin-panel">
       <div className="admin-header">
-        <h2>🛡️ Administration Plateforme</h2>
-        <p className="admin-subtitle">Gestion des paramètres, comptes et traçabilité complète (ADMIN)</p>
+        <h2>Administration du Système</h2>
+        <p className="admin-subtitle">Configuration des paramètres d'exploitation, gestion des accès et traçabilité réglementaire (ADMIN)</p>
       </div>
 
       <div className="admin-tabs">

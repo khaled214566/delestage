@@ -10,6 +10,23 @@ interface AllocationTreeProps {
   orderStatus: string;
 }
 
+interface MapZoneFeature {
+  properties?: {
+    id?: string;
+    bcc_id?: string;
+    name?: string;
+  };
+}
+
+interface ZoneInfo {
+  id: string;
+  name: string;
+}
+
+interface CitizenStatusPayload {
+  shedding_zone_ids?: string[];
+}
+
 function slotLabel(slot: DeficitSlot | { slot_start: string; slot_end: string }) {
   const opts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' };
   const start = new Date(slot.slot_start).toLocaleTimeString('fr-FR', opts);
@@ -35,6 +52,37 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [allExpanded, setAllExpanded] = useState(false);
+  const [zonesByBcc, setZonesByBcc] = useState<Record<string, ZoneInfo[]>>({});
+  const [liveSheddingZones, setLiveSheddingZones] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetch('/data/tunisia_zones.geojson').then((response) => response.json() as Promise<{ features?: MapZoneFeature[] }>),
+      fetch('/api/public/status').then((response) => response.json() as Promise<CitizenStatusPayload>),
+    ])
+      .then(([geojson, citizenStatus]) => {
+        if (cancelled) return;
+        const grouped: Record<string, ZoneInfo[]> = {};
+        for (const feature of geojson.features || []) {
+          const bccId = feature.properties?.bcc_id;
+          const zoneId = feature.properties?.id;
+          const zoneName = feature.properties?.name;
+          if (!bccId || !zoneId || !zoneName) continue;
+          (grouped[bccId] ||= []).push({ id: zoneId, name: zoneName });
+        }
+        for (const zones of Object.values(grouped)) zones.sort((left, right) => left.name.localeCompare(right.name, 'fr'));
+        setZonesByBcc(grouped);
+        setLiveSheddingZones(new Set((citizenStatus.shedding_zone_ids || []).map((zoneId) => zoneId.toUpperCase())));
+      })
+      .catch(() => {
+        if (!cancelled) setZonesByBcc({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const addOverride = useMutation({
     mutationFn: ({ nodeId, feederId }: { nodeId: number; feederId: string }) => addFeederOverride(orderId, nodeId, feederId),
@@ -128,6 +176,51 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
     }
   };
 
+  const renderBccZones = (node: AllocationNode, indent: number) => {
+    if (node.level !== 'BCC') return null;
+
+    const assignedZones = new Map<string, number>();
+    for (const assignment of node.feeder_assignments || []) {
+      const zoneName = (assignment.feeder_name || assignment.feeder_id).replace(/^Départ\s+/, '').trim();
+      assignedZones.set(zoneName, (assignedZones.get(zoneName) || 0) + assignment.assigned_mw);
+    }
+
+    const zones = zonesByBcc[node.entity_id] || [...assignedZones.keys()]
+      .sort((left, right) => left.localeCompare(right, 'fr'))
+      .map((name) => ({ id: name, name }));
+    if (!zones.length) {
+      return (
+        <div className="tree-zones-summary" style={{ marginLeft: `${(indent + 1) * 22}px` }}>
+          <div className="tree-zones-title">Zones sous ce BCC</div>
+          <div className="tree-zones-empty">Chargement des zones administratives...</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="tree-zones-summary" style={{ marginLeft: `${(indent + 1) * 22}px` }}>
+        <div className="tree-zones-title">Zones sous ce BCC ({zones.length})</div>
+        <div className="tree-zones-list">
+          {zones.map((zone) => {
+            const isLiveShedding = liveSheddingZones.has(zone.id.toUpperCase());
+            const isPlanned = assignedZones.has(zone.name);
+            const statusLabel = isLiveShedding ? 'Coupure en cours' : isPlanned ? 'Délestage planifié' : 'Alimentée';
+            return (
+            <span
+              key={zone.id}
+              className={`tree-zone-chip ${isLiveShedding ? 'tree-zone-live-shedding' : isPlanned ? 'tree-zone-assigned' : 'tree-zone-normal'}`}
+              title={isLiveShedding ? 'Coupure électrique en cours' : isPlanned ? 'Prévue dans cet ordre, mais pas nécessairement coupée actuellement' : 'Aucun événement de coupure en cours'}
+            >
+              {zone.name} · {statusLabel}
+              {isPlanned ? ` · ${assignedZones.get(zone.name)!.toLocaleString('fr-FR')} MW` : ''}
+            </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (!nodes || nodes.length === 0) {
     return <div className="info">Aucun nœud d'allocation disponible. Lancez l'allocation pour cet ordre.</div>;
   }
@@ -135,13 +228,14 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
   const renderNode = (node: AllocationNode, indent: number) => {
     const isExpanded = !!expanded[node.id];
     const hasChildren = (node.children?.length > 0) || (node.feeder_assignments?.length > 0);
+    const canExpand = hasChildren || node.level === 'BCC';
     const pct = getProgressPct(node.achieved_mw, node.target_mw);
 
     return (
       <div key={`node-${node.id}`} className="tree-node-group">
         <div className={`tree-row level-${node.level.toLowerCase()}`}>
           <div className="cell-entity" style={{ paddingLeft: `${indent * 22}px` }}>
-            {hasChildren ? (
+            {canExpand ? (
               <button 
                 type="button" 
                 className="tree-toggle" 
@@ -204,6 +298,7 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
         {isExpanded && (
           <div className="tree-children">
             {node.children?.map((child) => renderNode(child, indent + 1))}
+            {renderBccZones(node, indent)}
             {node.feeder_assignments?.map((fa) => (
               <div key={`fa-${fa.id}`} className="tree-row level-feeder">
                 <div className="cell-entity" style={{ paddingLeft: `${(indent + 1) * 22}px` }}>
@@ -303,18 +398,25 @@ export default function AllocationTree({ nodes, slots = [], orderId, orderStatus
             </div>
           </div>
 
-          <div className="creneau-progress-section">
-            <div className="progress-labels">
-              <span>Décrotage réalisé : <strong>{activeNode.achieved_mw.toLocaleString('fr-FR')} MW</strong></span>
-              <span>Cible de délestage : <strong>{activeNode.target_mw.toLocaleString('fr-FR')} MW</strong></span>
-            </div>
-            <div className="progress-track">
-              <div 
-                className={`progress-fill ${activeNode.shortfall_mw === 0 ? 'fill-success' : 'fill-warning'}`}
-                style={{ width: `${getProgressPct(activeNode.achieved_mw, activeNode.target_mw)}%` }}
-              />
-            </div>
-          </div>
+          {(() => {
+            const creneauCoveragePct = getProgressPct(activeNode.achieved_mw, activeNode.target_mw);
+            return (
+              <>
+                <div className="creneau-progress-section">
+                  <div className="progress-labels">
+                    <span>Décrotage réalisé : <strong>{activeNode.achieved_mw.toLocaleString('fr-FR')} MW</strong></span>
+                    <span>Cible de délestage : <strong>{activeNode.target_mw.toLocaleString('fr-FR')} MW</strong></span>
+                  </div>
+                  <div className="progress-track">
+                    <div 
+                      className={`progress-fill ${creneauCoveragePct >= 100 ? 'fill-success' : 'fill-warning'}`}
+                      style={{ width: `${Math.min(100, creneauCoveragePct)}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 

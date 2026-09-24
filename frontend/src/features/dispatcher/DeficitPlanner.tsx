@@ -44,9 +44,9 @@ const SCENARIO_EOLIEN_BAS =
   '21:00-21:30,3900,3600,150,50\n';
 
 const PRESETS = [
-  { label: 'Pic Canicule (~300 MW)', csv: SCENARIO_CANICULE, icon: '🔥' },
-  { label: 'Nominal (~50 MW)', csv: SCENARIO_NOMINAL, icon: '✅' },
-  { label: 'Éolien Bas (~400 MW)', csv: SCENARIO_EOLIEN_BAS, icon: '🌬️' },
+  { label: 'Pointe Canicule (~300 MW)', csv: SCENARIO_CANICULE },
+  { label: 'Régime Nominal (~50 MW)', csv: SCENARIO_NOMINAL },
+  { label: 'Déficit Éolien (~400 MW)', csv: SCENARIO_EOLIEN_BAS },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ export default function DeficitPlanner() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isDispatcher = user?.role === 'DISPATCHER';
+  const canManagePlans = user?.role === 'DISPATCHER' || user?.role === 'ADMIN';
 
   // Target date is always tomorrow (J-1 planning)
   const targetDate = useMemo(() => tomorrow(), []);
@@ -227,7 +227,7 @@ export default function DeficitPlanner() {
   const { data: plans } = useQuery({
     queryKey: ['deficit-plans'],
     queryFn: listPlans,
-    enabled: isDispatcher,
+    enabled: canManagePlans,
   });
 
   const [planId, setPlanId] = useState<number | null>(null);
@@ -255,6 +255,14 @@ export default function DeficitPlanner() {
       if (existing) {
         setPlanId(existing.id);
       }
+    },
+  });
+
+  const newScenarioMutation = useMutation({
+    mutationFn: () => createPlan(targetDate, 'REAL_TIME'),
+    onSuccess: (created) => {
+      setPlanId(created.id);
+      queryClient.invalidateQueries({ queryKey: ['deficit-plans'] });
     },
   });
 
@@ -355,7 +363,7 @@ export default function DeficitPlanner() {
     setPlanId(tomorrowPlan.id);
   }
 
-  if (!isDispatcher) {
+  if (!canManagePlans) {
     return (
       <div className="deficit-planner-container">
         <div className="deficit-card">
@@ -377,6 +385,15 @@ export default function DeficitPlanner() {
           </p>
         </div>
         <div className="page-header-actions">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => initPlanMutation.mutate()}
+            disabled={initPlanMutation.isPending || !!planId}
+            title={planId ? 'Le plan de demain est déjà ouvert' : 'Créer le plan J-1 de demain'}
+          >
+            {initPlanMutation.isPending ? 'Création…' : planId ? 'Plan J-1 ouvert' : '＋ Créer le plan J-1'}
+          </button>
           <button
             type="button"
             className="btn-archive-toggle"
@@ -467,7 +484,6 @@ export default function DeficitPlanner() {
                   onClick={() => handlePreset(preset.csv)}
                   disabled={csvUploadMutation.isPending}
                 >
-                  <span className="preset-icon">{preset.icon}</span>
                   <span className="preset-label">{preset.label}</span>
                 </button>
               ))}
@@ -498,7 +514,7 @@ export default function DeficitPlanner() {
           <div className="status-banner-left">
             <span className={`status-dot ${plan.status === 'VALIDATED' ? 'dot-green' : 'dot-amber'}`} />
             <span className="status-banner-text">
-              Plan du <strong>{formatDateLong(plan.date)}</strong> — Statut : <strong>{plan.status === 'VALIDATED' ? 'Validé ✓' : 'Brouillon'}</strong>
+              Plan <strong>{plan.mode === 'REAL_TIME' ? 'temps réel' : 'J-1'}</strong> du <strong>{formatDateLong(plan.date)}</strong> — Statut : <strong>{plan.status === 'VALIDATED' ? 'Validé ✓' : 'Brouillon'}</strong>
             </span>
           </div>
           {plan.slots.length > 0 && (
@@ -509,6 +525,23 @@ export default function DeficitPlanner() {
               <span className="stat-chip">
                 <strong>{slotsWithDeficit}</strong>/{plan.slots.length} créneaux en déficit
               </span>
+            </div>
+          )}
+          {plan.status === 'VALIDATED' && plan.mode === 'J-1' && (
+            <div className="status-banner-action">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => newScenarioMutation.mutate()}
+                disabled={newScenarioMutation.isPending}
+              >
+                {newScenarioMutation.isPending ? 'Création…' : '＋ Nouveau scénario'}
+              </button>
+              {newScenarioMutation.isError && (
+                <div className="status error" style={{ marginTop: '0.5rem' }}>
+                  {extractErrorDetail(newScenarioMutation.error) ?? 'Impossible de créer le nouveau scénario'}
+                </div>
+              )}
             </div>
           )}
         </div>

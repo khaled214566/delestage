@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.order as order_service
+from app.services.zone_names import feeder_display_name
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_role
 from app.models.enums import UserRole
@@ -208,7 +209,7 @@ def _node_to_out(node):
         assignments_out.append(FeederAssignmentOut(
             id=a.id,
             feeder_id=a.feeder_id,
-            feeder_name=feeder.name if feeder else a.feeder_id,
+            feeder_name=feeder_display_name(feeder) if feeder else a.feeder_id,
             assigned_mw=a.assigned_mw,
             priority=feeder.priority.value if feeder else "?",
             fairness_score=a.fairness_score,

@@ -19,6 +19,7 @@ from app.schemas.execution import (
 from app.services import audit
 from app.services import order as order_service
 from app.services import monitoring as monitoring_service
+from app.services.zone_names import feeder_display_name
 from app.core.websocket import ws_manager
 
 
@@ -162,7 +163,7 @@ async def get_bcc_dashboard(db: AsyncSession, bcc_id: str, user: User) -> BccExe
         items.append(
             FeederExecutionItem(
                 feeder_id=f.id,
-                feeder_name=f.name,
+                feeder_name=feeder_display_name(f),
                 substation_name=f.substation.name if f.substation else "",
                 priority=f.priority.value,
                 is_critical=f.critical,
@@ -643,7 +644,7 @@ async def execute_emergency_auto_shed(
         cut_feeders.append(
             EmergencyCutFeederInfo(
                 feeder_id=feeder.id,
-                feeder_name=feeder.name,
+                feeder_name=feeder_display_name(feeder),
                 bcc_id=bcc.id,
                 bcc_name=bcc.name,
                 priority=feeder.priority.value,
