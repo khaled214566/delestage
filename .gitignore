@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-
+.history/
 *.egg-info/
 dist/
 build/
@@ -10,7 +10,9 @@ node_modules/
 .next/
 frontend/dist/
 *.loggit
+.env
 .DS_Store
 .idea/
 .vscode/
 .agents/
+graphify-out/
