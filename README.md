@@ -32,7 +32,7 @@ An intelligent, equity-aware decision-support platform designed for electrical t
 ---
 # 🎥 Project Demo
 
-[![Project Demo]](https://youtu.be/hqjGjRDMUuo)
+https://github.com/user-attachments/assets/db0f3587-d93b-4c6e-99f9-acf97363b6ed
 
 ## ⚡ Overview & Objectives
 
