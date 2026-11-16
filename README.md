@@ -30,6 +30,10 @@ An intelligent, equity-aware decision-support platform designed for electrical t
 - [Roadmap & Future Evolutions](#-roadmap--future-evolutions)
 
 ---
+# 🎥 Project Demo
+
+[▶️ Watch Project Demo](./ProjectDemo.mp4)
+
 
 ## ⚡ Overview & Objectives
 
